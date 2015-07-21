@@ -18,7 +18,7 @@ object DockerBuild extends Build {
   lazy val root = (project in file(".")).settings((aspectjSettings ++ Defaults.coreDefaultSettings): _*).configs(TestBuild.E2ETest, TestBuild.ITest).settings(inConfig(TestBuild.E2ETest)(Defaults.testTasks) : _*).settings(inConfig(TestBuild.ITest)(Defaults.testTasks) : _*)
 
 
-  lazy val api = ClusterProject("api").settings(
+  lazy val skarnProject = ClusterProject("skarn").settings(
     mainClass in Compile := Some("skarn.BootApi")
   )
 
@@ -33,7 +33,7 @@ object DockerBuild extends Build {
     compile := (compile in Compile).value,
     NativePackagerKeys.maintainer in Docker := "Yusuke Yasuda <yyusuke@trifort.jp>",
     dockerBaseImage := "java",
-    dockerRepository := Some(name in root value),
+    dockerRepository := Some("trifort"),
     dockerExposedPorts := Seq(8080, 8125),
     dockerEntrypoint := Seq("sh", "-c", "bin/" + name.value + " $*")
     //dockerUpdateLatest := true
@@ -44,7 +44,7 @@ object DockerBuild extends Build {
       genDockerCompose := {
       val resourceFile: File = (target in Compile in root).value /  "docker-compose.yml"
       val versionHash = version.value
-      val repo = (dockerRepository in api).value.get
+      val repo = (dockerRepository in skarnProject).value.get
       val configPath = stringParser.parsed
 
       val yml =

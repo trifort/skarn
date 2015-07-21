@@ -86,7 +86,6 @@ genProjectInfo := {
     JSString("version") -> version.value
   )
   IO.write(resourceFile, JSObject(projectInfo).toJson)
-
   Seq(resourceFile)
 }
 

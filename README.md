@@ -9,20 +9,20 @@ Comming soon.
 
 ```sh
 sbt
-> api/stage
+> skarn/stage
 ```
 
 This command generates executables in *api/target/universal/stage*.
 
 In addition, you can package in any other format with following commands.
 
-+ api/universal:packageBin - Generates a universal zip file
-+ api/universal:packageZipTarball - Generates a universal tgz file
-+ api/debian:packageBin - Generates a deb
-+ api/docker:publishLocal - Builds a Docker image using the local Doapi/cker server
-+ api/rpm:packageBin - Generates an rpm
-+ api/universal::packageOsxDmg - Generates a DMG file with the saapi/me contents as the universal zip/tgz.
-+ api/windows:packageBin - Generates an MSI
++ skarn/universal:packageBin - Generates a universal zip file
++ skarn/universal:packageZipTarball - Generates a universal tgz file
++ skarn/debian:packageBin - Generates a deb
++ skarn/docker:publishLocal - Builds a Docker image using the local Doapi/cker server
++ skarn/rpm:packageBin - Generates an rpm
++ skarn/universal::packageOsxDmg - Generates a DMG file with the saapi/me contents as the unskarnrsal zip/tgz.
++ skarn/windows:packageBin - Generates an MSI
 
 For more information, see [sbt-native-packager document](http://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/my-first-project.html).
 
