@@ -33,7 +33,7 @@ object DockerBuild extends Build {
     compile := (compile in Compile).value,
     NativePackagerKeys.maintainer in Docker := "Yusuke Yasuda <yyusuke@trifort.jp>",
     dockerBaseImage := "java",
-    dockerRepository := Some("172.16.43.12:5000"),
+    dockerRepository := Some(name in root value),
     dockerExposedPorts := Seq(8081, 2551, 8125),
     dockerEntrypoint := Seq("sh", "-c", "bin/" + name.value + " $*")
     //dockerUpdateLatest := true
