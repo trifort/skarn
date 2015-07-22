@@ -1,4 +1,4 @@
-# Skarn
+# Skarn [![Circle CI](https://circleci.com/gh/trifort/skarn.svg?style=svg)](https://circleci.com/gh/trifort/skarn)
 
 Push notification server build on Akka Actor with Scala
 
