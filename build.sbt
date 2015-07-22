@@ -2,7 +2,7 @@ import skarn.json._
 
 import spray.revolver.RevolverPlugin._
 
-name := "skarn"
+name := "skarn-push-server"
 
 scalaVersion := "2.11.7"
 
