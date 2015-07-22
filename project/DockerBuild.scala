@@ -35,8 +35,8 @@ object DockerBuild extends Build {
     dockerBaseImage := "java",
     dockerRepository := Some("trifort"),
     dockerExposedPorts := Seq(8080, 8125),
-    dockerEntrypoint := Seq("sh", "-c", "bin/" + name.value + " $*")
-    //dockerUpdateLatest := true
+    dockerEntrypoint := Seq("sh", "-c", "bin/" + name.value + " $*"),
+    dockerUpdateLatest := true
   )
 
   override lazy val settings = super.settings ++ Seq(
