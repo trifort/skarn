@@ -49,8 +49,6 @@ scalacOptions in ThisBuild ++= Seq("-feature", "-deprecation", "-unchecked", "-e
 mainClass in Compile := Some("skarn.BootApi")
 
 javaOptions ++= Seq(
-  "-Dclustering.host=127.0.0.1",
-  "-Dclustering.port=2551",
   "-Dhttp.port=8080",
   "-Djvm-debug 5005",
   "-Dkamon.statsd.hostname=172.17.8.101",
@@ -61,8 +59,6 @@ javaOptions ++= Seq(
 mainClass in Revolver.reStart := Some("skarn.BootApi")
 
 javaOptions in Revolver.reStart ++= Seq(
-  "-Dclustering.host=127.0.0.1",
-  "-Dclustering.port=2554",
   "-Dhttp.port=8084",
   "-Djvm-debug 5005",
   "-Dkamon.statsd.hostname=172.17.8.101",
