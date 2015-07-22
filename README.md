@@ -3,7 +3,50 @@
 Push notification server build on Akka Actor with Scala
 
 ## Quick start with Docker
-Coming soon.
+
+Pull a docker image.
+```sh
+docker pull trifort/skarn
+```
+
+Create *service.json* and fill your service information.
+
+```json
+{
+  "services": [
+    {
+      "name": "service1",
+      "auth-token": "ARBITRARY_TOKEN",
+      "apns": {
+        "cert-path": "/path/to/certificate.p12",
+        "password": "password"
+      },
+      "gcm": {
+        "api-key": "ApiKey"
+      }
+    }
+  ]
+}
+```
+
+Note that you need to put your APNS certificate with p12 format at the specified path.
+
+
+Run a container.
+
+```sh
+docker run -v /path/to/service.json:/conf/service.json -e CONFIG_PATH=/conf/service.json -p 80:8080 -it trifort/skarn
+```
+
+If you see a log message such as "Bound to /0.0.0.0:8080", it is ready to request.
+
+```
+curl --header "X-AUTH-TOKEN: ARBITRARY_TOKEN" \
+     --header Content-Type:"application/json" \
+     http://YOUR_SKARN_IP \
+     -d "{  \"notifications\": [    {      \"deviceTokens\": [\"b59430...0ca3a\"],      \"platform\": 1,      \"message\": \"Hello iOS\"    },    {      \"deviceTokens\": [\"APA91bGw...Aps-jSkBUC\"],      \"platform\": 2,      \"message\": \"Hello Android\"    }  ]"
+```
+
 
 ## Build
 
@@ -38,7 +81,7 @@ example: service.json
       "name": "service1",
       "auth-token": "TOKEN_IN_HEADER",
       "apns": {
-        "cert-path": "/path/to/certificate",
+        "cert-path": "/path/to/certificate.p12",
         "password": "password"
       },
       "gcm": {
@@ -49,7 +92,7 @@ example: service.json
       "name": "service2",
       "auth-token": "TOKEN_IN_HEADER",
       "apns": {
-        "cert-path": "/path/to/certificate",
+        "cert-path": "/path/to/certificate.p12",
         "password": "password"
       },
       "gcm": {
