@@ -3,7 +3,7 @@
 Push notification server build on Akka Actor with Scala
 
 ## Quick start with Docker
-Comming soon.
+Coming soon.
 
 ## Build
 
@@ -88,7 +88,7 @@ example
       "platform": 2,
       "message": "Hello Android",
       "extend": [{"key": "my-data", "value": "my-value"}],
-      "collapseKey": "outline",
+      "collapseKey": "Updates Available",
       "delayWhileIdle": true
     }
   ]
@@ -99,29 +99,29 @@ HEADER
 + Content-Type - application/json
 + X-AUTH-TOKEN - Your token defined in the config file specified by *CONFIG_PATH*
 
-JSON
+JSON body
 
 | Parameter    | Usage                   | Description |
 |:-------------|:------------------------|:------------|
-| notifications| Notification <br> Array |             |
+| notifications| Notification <br> Array | Array of Notification object (see below) |
 
 
 Notification
 
 | Parameter    | Usage                   | Description |
 |:-------------|:------------------------|:------------|
-| deviceTokens | String <br> Array       |             |
-| platform     | Int                     |             |
-| message      | String                  |             |
-| badge        | Optional <br> Int       |             |
-| sound        | Optional <br> String    |             |
-| extend       | Optional <br> Object <br> Array|             |
-| collapseKey  | Optional <br> String    |             |
-| delayWhileIdle| Optional <br> Boolean  |             |
+| deviceTokens | String <br> Array       | array of device tokens or registration IDs |
+| platform     | Int                     | APNS: 1, GCM: 2 |
+| message      | String                  | notification message |
+| badge        | Optional <br> Int       | badge count. APNS only. |
+| sound        | Optional <br> String    | sound to be played. APNS only. |
+| extend       | Optional <br> Object <br> Array| GCM data payload. Format should be array of object contains "key" and "value" fields. This array is reduced into single object. For example, [{"key": "my-data", "value": "my-value"}] turns into {"my-data": "my-value"} |
+| collapseKey  | Optional <br> String    | a key for collapsing notifications. GCM only. |
+| delayWhileIdle| Optional <br> Boolean  | if notification should be wait or not until the device becomes active. GCM only. |
 
 
 
-## Contributers
+## Contributors
 
 + Yusuke Yasuda ([@TanUkkii](https://github.com/TanUkkii007))
 + Hajime Noguchi
