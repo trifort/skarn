@@ -35,7 +35,7 @@ Note that you need to put your APNS certificate with p12 format at the specified
 Run a container.
 
 ```sh
-docker run -v /path/to/service.json:/conf/service.json -e CONFIG_PATH=/conf/service.json -p 80:8080 -it trifort/skarn
+docker run -v /path/to/service.json:/conf/service.json -v /path/to/certificate.p12:/path/to/certificate.p12 -e CONFIG_PATH=/conf/service.json -p 80:8080 -it trifort/skarn
 ```
 
 If you see a log message such as "Bound to /0.0.0.0:8080", it is ready to request.
