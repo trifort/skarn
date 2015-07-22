@@ -56,6 +56,8 @@ javaOptions ++= Seq(
   s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns/apns.p12"
 )
 
+fork in run := true
+
 mainClass in Revolver.reStart := Some("skarn.BootApi")
 
 javaOptions in Revolver.reStart ++= Seq(
