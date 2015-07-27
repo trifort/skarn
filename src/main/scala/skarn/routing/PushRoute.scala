@@ -9,10 +9,8 @@ import skarn.filter.FilterProtocol.CheckedHeaderList
 import skarn.push._
 import spray.routing.Directives._
 
-class PushRoute(context: ActorContext) extends BasicRoute with PushServices {
+class PushRoute(val context: ActorContext) extends BasicRoute with PushServices {
   val resource = "push"
-
-  val actorContext = context
 
   val route = pathPrefix(version / resource) {
     post {

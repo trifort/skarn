@@ -18,7 +18,7 @@ trait Bootable {
     val config = serviceBootstrap.config
     println(s"Config file: ${System.getProperty("CONFIG_PATH")}")
     println("Loaded services: ")
-    PushServiceInfo.services.map(_.name).foreach(println)
+    PushServiceInfo.services.map("* " + _.name).foreach(println)
     val system = ActorSystem(ProjectInfo.name, config)
     serviceBootstrap.run(system)
   }
