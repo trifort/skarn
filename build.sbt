@@ -12,7 +12,7 @@ organization := "jp.trifort"
 
 versionWithGit
 
-git.baseVersion := "0.1"
+git.baseVersion := "0.2"
 
 resolvers ++= Seq(
   "spray repo" at "http://repo.spray.io"
