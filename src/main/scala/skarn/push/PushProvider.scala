@@ -15,6 +15,13 @@ import scala.collection.JavaConversions._
  * Created by yusuke on 2015/04/27.
  */
 
+object APNSJsonProtocol extends DefaultJsonProtocol {
+  import APNSProtocol._
+  implicit val AlertFormat = jsonFormat2(Alert)
+  implicit val NotificationFormat = jsonFormat3(Notification)
+  implicit val APNSEntityFormat = jsonFormat1(APNSEntity)
+}
+
 object GCMJsonProtocol extends DefaultJsonProtocol {
   import PushRequestHandleActorJsonFormat._
   import GCMProtocol._
@@ -24,31 +31,19 @@ object GCMJsonProtocol extends DefaultJsonProtocol {
   implicit val GCMResponseFormat = jsonFormat5(GCMResponse)
 }
 
-trait PushProvider {
-
+object APNSProtocol {
+  case class Alert(title: Option[String], body: Option[String])
+  case class Notification(alert: Alert, badge: Option[Int], sound: Option[String])
+  case class APNSEntity(aps: Notification)
 }
 
 trait IosPushProvider {
 
   def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None)(implicit service: ApnsService) = {
-    val payload = APNS.newPayload()
-    title match {
-      case Some(t) => payload.alertTitle(t)
-      case None => payload
-    }
-    body match {
-      case Some(b) => payload.alertBody(b)
-      case None => payload
-    }
-    badge match {
-      case Some(num) => payload.badge(num)
-      case None => payload
-    }
-    sound match {
-      case Some(soundType) => payload.sound(soundType)
-      case None => payload
-    }
-    service.push(deviceTokens.toIterable, payload.build())
+    import APNSProtocol._
+    import APNSJsonProtocol._
+    val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
+    service.push(deviceTokens.toIterable, payload)
   }
 }
 
