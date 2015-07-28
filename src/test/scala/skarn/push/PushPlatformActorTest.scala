@@ -33,10 +33,10 @@ class PushPlatformActorTest extends TestKit(ActorSystem({"PushPlatformActorTest"
       import PushRequestHandleActorProtocol._
       import PushActorProtocol._
       val testPushPlatformRouter = system.actorOf(TestPushPlatformRouter.props())
-      testPushPlatformRouter ! PushEntity(Vector("deviceToken"), Platform.Ios, "ios")
-      iosProbe1.expectMsg(IosPush(Vector("deviceToken"), "ios"))
-      testPushPlatformRouter ! PushEntity(Vector("deviceToken"), Platform.Android, "android")
-      androidProbe1.expectMsg(AndroidPush(Vector("deviceToken"), "android"))
+      testPushPlatformRouter ! PushEntity(Vector("deviceToken"), Platform.Ios, None, Some("ios"))
+      iosProbe1.expectMsg(IosPush(Vector("deviceToken"), None, Some("ios")))
+      testPushPlatformRouter ! PushEntity(Vector("deviceToken"), Platform.Android, Some("android"), None)
+      androidProbe1.expectMsg(AndroidPush(Vector("deviceToken"), Some("android"), None))
     }
   }
 }

@@ -30,8 +30,16 @@ trait PushProvider {
 
 trait IosPushProvider {
 
-  def send(deviceTokens: Vector[String], message: String, badge: Option[Int] = None, sound: Option[String] = None)(implicit service: ApnsService) = {
-    val payload = APNS.newPayload().alertBody(message)
+  def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None)(implicit service: ApnsService) = {
+    val payload = APNS.newPayload()
+    title match {
+      case Some(t) => payload.alertTitle(t)
+      case None => payload
+    }
+    body match {
+      case Some(b) => payload.alertBody(b)
+      case None => payload
+    }
     badge match {
       case Some(num) => payload.badge(num)
       case None => payload
@@ -84,7 +92,7 @@ trait AndroidPushProvider extends ServiceBaseContext {
 
 object GCMProtocol {
   import PushRequestHandleActorProtocol.ExtraData
-  case class Notification(title: String, body: Option[String] = None, icon: Option[String] = None, sound: Option[String] = None, tag: Option[String] = None, color: Option[String] = None)
+  case class Notification(title: Option[String], body: Option[String] = None, icon: Option[String] = None, sound: Option[String] = None, tag: Option[String] = None, color: Option[String] = None)
   case class GCMEntity(registration_ids: Vector[String], notification: Option[Notification], collapse_key: Option[String] = None, delay_while_idle: Option[Boolean] = None, time_to_live: Option[Int] = None, data: Option[ExtraData] = None)
   case class GCMResponse(multicast_id: Long, success: Int, failure: Int, canonical_ids: Int, results: List[GCMResult])
   case class GCMResult(message_id: String, registration_id: Option[String], error: Option[String])
