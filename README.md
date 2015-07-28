@@ -44,7 +44,7 @@ If you see a log message such as "Bound to /0.0.0.0:8080", it is ready to reques
 curl --header "X-AUTH-TOKEN: ARBITRARY_TOKEN" \
      --header Content-Type:"application/json" \
      http://YOUR_SKARN_IP \
-     -d "{  \"notifications\": [    {      \"deviceTokens\": [\"b59430...0ca3a\"],      \"platform\": 1,      \"message\": \"Hello iOS\"    },    {      \"deviceTokens\": [\"APA91bGw...Aps-jSkBUC\"],      \"platform\": 2,      \"message\": \"Hello Android\"    }  ]"
+     -d "{  \"notifications\": [    {      \"deviceTokens\": [\"b59430...0ca3a\"],      \"platform\": 1,      \"body\": \"Hello iOS\"    },    {      \"deviceTokens\": [\"APA91bGw...Aps-jSkBUC\"],      \"platform\": 2,      \"title\": \"Hello Android\"    }  ]"
 ```
 
 
@@ -124,13 +124,13 @@ example
       "platform": 1,
       "badge": 2,
       "sound": "default",
-      "message": "Hello iOS"
+      "body": "Hello iOS"
     },
     {
       "deviceTokens": ["APA91bGw...Aps-jSkBUC"],
       "platform": 2,
-      "message": "Hello Android",
-      "extend": [{"key": "my-data", "value": "my-value"}],
+      "title": "Hello Android",
+      "data": [{"key": "my-data", "value": "my-value"}],
       "collapseKey": "Updates Available",
       "delayWhileIdle": true
     }
@@ -155,10 +155,11 @@ Notification
 |:-------------|:------------------------|:------------|
 | deviceTokens | String <br> Array       | array of device tokens or registration IDs |
 | platform     | Int                     | APNS: 1, GCM: 2 |
-| message      | String                  | notification message |
+| title        | String                  | notification title. Required for Android and optional for iOS. Note that in APNS, only iOS 8.2 and higher and Apple Watch support this field.  |
+| body         | Optional <br> String    | notification body |
 | badge        | Optional <br> Int       | badge count. APNS only. |
 | sound        | Optional <br> String    | sound to be played. APNS only. |
-| extend       | Optional <br> Object <br> Array| GCM data payload. Format should be array of object contains "key" and "value" fields. This array is reduced into single object. For example, [{"key": "my-data", "value": "my-value"}] turns into {"my-data": "my-value"} |
+| data         | Optional <br> Object <br> Array| GCM data payload. Format should be array of object contains "key" and "value" fields. This array is reduced into single object. For example, [{"key": "my-data", "value": "my-value"}] turns into {"my-data": "my-value"} |
 | collapseKey  | Optional <br> String    | a key for collapsing notifications. GCM only. |
 | delayWhileIdle| Optional <br> Boolean  | if notification should be wait or not until the device becomes active. GCM only. |
 

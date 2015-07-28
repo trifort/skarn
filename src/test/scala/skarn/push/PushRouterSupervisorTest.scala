@@ -44,11 +44,11 @@ class PushRouterSupervisorTest extends TestKit(ActorSystem({"PushPlatformActorTe
       import skarn.push.PushRequestHandleActorProtocol._
       Stream.from(1).take(100).map {i =>
         val platform = Platform(i % 2 + 1)
-        PushEntity(Vector("deviceToken"), platform, "message")
+        PushEntity(Vector("deviceToken"), platform, Some("message"), None)
       }.foreach(testPushRouterSupervisor ! _)
       receiveN(100, 5 seconds).map {
-        case PushEntity(Vector("deviceToken"), Platform.Ios, "message", _, _, _, _, _, _) => (1, 0)
-        case PushEntity(Vector("deviceToken"), Platform.Android, "message", _, _, _, _, _, _) => (0, 1)
+        case PushEntity(Vector("deviceToken"), Platform.Ios, Some("message"), _, _, _, _, _, _, _) => (1, 0)
+        case PushEntity(Vector("deviceToken"), Platform.Android, Some("message"), _, _, _, _, _, _, _) => (0, 1)
         case _ => (0, 0)
       }.reduce { (a, b) =>
         (a._1 + b._1, a._2 + b._2)

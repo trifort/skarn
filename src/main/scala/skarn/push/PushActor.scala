@@ -16,8 +16,8 @@ import definition.Platform
 
 
 object PushActorProtocol {
-  case class IosPush(deviceTokens: Vector[String], message: String, badge: Option[Int] = None, sound: Option[String] = None)
-  case class AndroidPush(deviceTokens: Vector[String], message: String, collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, extend: Option[ExtraData] = None)
+  case class IosPush(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None)
+  case class AndroidPush(deviceTokens: Vector[String], title: Option[String], body: Option[String], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, extend: Option[ExtraData] = None)
 }
 
 class PushIosActor(service: ApnsService) extends Actor with IosPushProvider {
@@ -25,8 +25,8 @@ class PushIosActor(service: ApnsService) extends Actor with IosPushProvider {
 
   implicit val pushService = service
   def receive: Receive = {
-    case IosPush(deviceTokens, message, badge, sound) => {
-      send(deviceTokens, message, badge, sound)
+    case IosPush(deviceTokens, title, body, badge, sound) => {
+      send(deviceTokens, title, body, badge, sound)
     }
   }
 }
@@ -40,8 +40,8 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
   implicit val executionContext = context.dispatcher
   import PushActorProtocol._
   def receive: Receive = {
-    case AndroidPush(deviceToken, message, collapseKey, delayWhileIdle, timeToLive, extend) => {
-      send(deviceToken, Some(Notification(message)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
+    case AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend) => {
+      send(deviceToken, Some(Notification(title, body)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
         case Success(result) => log.info("{}", result)
         case Failure(e) => log.error(e, "GCM request failed")
       }
@@ -59,11 +59,11 @@ with PlatformActorCreator with ActorLogging {
   import PushRequestHandleActorProtocol._
 
   def receive: Receive = {
-    case entity@PushEntity(_, platform, _, _, _, _, _, _, _) => {
+    case entity@PushEntity(_, platform, _, _, _, _, _, _, _, _) => {
       import  Platform._
       platform match {
-        case Ios => ios forward IosPush(entity.deviceTokens, entity.message, entity.badge)
-        case Android => android forward AndroidPush(entity.deviceTokens, entity.message, entity.collapseKey, entity.delayWhileIdle, entity.timeToLive, entity.extend)
+        case Ios => ios forward IosPush(entity.deviceTokens, entity.title, entity.body, entity.badge, entity.sound)
+        case Android => android forward AndroidPush(entity.deviceTokens, entity.title, entity.body, entity.collapseKey, entity.delayWhileIdle, entity.timeToLive, entity.data)
         case Unknown => log.warning("unrecognized platform received")
       }
     }

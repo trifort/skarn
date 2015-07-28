@@ -15,6 +15,13 @@ import scala.collection.JavaConversions._
  * Created by yusuke on 2015/04/27.
  */
 
+object APNSJsonProtocol extends DefaultJsonProtocol {
+  import APNSProtocol._
+  implicit val AlertFormat = jsonFormat2(Alert)
+  implicit val NotificationFormat = jsonFormat3(Notification)
+  implicit val APNSEntityFormat = jsonFormat1(APNSEntity)
+}
+
 object GCMJsonProtocol extends DefaultJsonProtocol {
   import PushRequestHandleActorJsonFormat._
   import GCMProtocol._
@@ -24,23 +31,19 @@ object GCMJsonProtocol extends DefaultJsonProtocol {
   implicit val GCMResponseFormat = jsonFormat5(GCMResponse)
 }
 
-trait PushProvider {
-
+object APNSProtocol {
+  case class Alert(title: Option[String], body: Option[String])
+  case class Notification(alert: Alert, badge: Option[Int], sound: Option[String])
+  case class APNSEntity(aps: Notification)
 }
 
 trait IosPushProvider {
 
-  def send(deviceTokens: Vector[String], message: String, badge: Option[Int] = None, sound: Option[String] = None)(implicit service: ApnsService) = {
-    val payload = APNS.newPayload().alertBody(message)
-    badge match {
-      case Some(num) => payload.badge(num)
-      case None => payload
-    }
-    sound match {
-      case Some(soundType) => payload.sound(soundType)
-      case None => payload
-    }
-    service.push(deviceTokens.toIterable, payload.build())
+  def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None)(implicit service: ApnsService) = {
+    import APNSProtocol._
+    import APNSJsonProtocol._
+    val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
+    service.push(deviceTokens.toIterable, payload)
   }
 }
 
@@ -84,7 +87,7 @@ trait AndroidPushProvider extends ServiceBaseContext {
 
 object GCMProtocol {
   import PushRequestHandleActorProtocol.ExtraData
-  case class Notification(title: String, body: Option[String] = None, icon: Option[String] = None, sound: Option[String] = None, tag: Option[String] = None, color: Option[String] = None)
+  case class Notification(title: Option[String], body: Option[String] = None, icon: Option[String] = None, sound: Option[String] = None, tag: Option[String] = None, color: Option[String] = None)
   case class GCMEntity(registration_ids: Vector[String], notification: Option[Notification], collapse_key: Option[String] = None, delay_while_idle: Option[Boolean] = None, time_to_live: Option[Int] = None, data: Option[ExtraData] = None)
   case class GCMResponse(multicast_id: Long, success: Int, failure: Int, canonical_ids: Int, results: List[GCMResult])
   case class GCMResult(message_id: String, registration_id: Option[String], error: Option[String])

@@ -56,7 +56,7 @@ object PushRequestHandleActorProtocol {
   type ExtraData = List[Ex]
   case class PushRequest(notifications: List[PushEntity])
   case class Ex(key: String, value: String)
-  case class PushEntity(deviceTokens: Vector[String], platform: Platform, message: String, badge: Option[Int] = None, sound: Option[String] = None, collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, extend: Option[List[Ex]] = None)
+  case class PushEntity(deviceTokens: Vector[String], platform: Platform, title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None, collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, data: Option[List[Ex]] = None)
   case class PushPayload(request: PushRequest, service: PushService)
 }
 
@@ -80,7 +80,7 @@ object PushRequestHandleActorJsonFormat extends DefaultJsonProtocol {
       case x => deserializationError("Expected ExList as JsArray, but got " + x)
     }
   }
-  implicit val PushEntityFormat = jsonFormat9(PushEntity)
+  implicit val PushEntityFormat = jsonFormat10(PushEntity)
   implicit val PushRequestFormat = jsonFormat1(PushRequest)
 
 }
