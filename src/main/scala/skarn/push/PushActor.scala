@@ -63,7 +63,7 @@ with PlatformActorCreator with ActorLogging {
       import  Platform._
       platform match {
         case Ios => ios forward IosPush(entity.deviceTokens, entity.title, entity.body, entity.badge, entity.sound)
-        case Android => android forward AndroidPush(entity.deviceTokens, entity.title, entity.body, entity.collapseKey, entity.delayWhileIdle, entity.timeToLive, entity.extend)
+        case Android => android forward AndroidPush(entity.deviceTokens, entity.title, entity.body, entity.collapseKey, entity.delayWhileIdle, entity.timeToLive, entity.data)
         case Unknown => log.warning("unrecognized platform received")
       }
     }

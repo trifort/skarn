@@ -56,7 +56,7 @@ object PushRequestHandleActorProtocol {
   type ExtraData = List[Ex]
   case class PushRequest(notifications: List[PushEntity])
   case class Ex(key: String, value: String)
-  case class PushEntity(deviceTokens: Vector[String], platform: Platform, title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None, collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, extend: Option[List[Ex]] = None)
+  case class PushEntity(deviceTokens: Vector[String], platform: Platform, title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None, collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, data: Option[List[Ex]] = None)
   case class PushPayload(request: PushRequest, service: PushService)
 }
 
