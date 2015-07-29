@@ -43,7 +43,8 @@ If you see a log message such as "Bound to /0.0.0.0:8080", it is ready to reques
 ```
 curl --header "X-AUTH-TOKEN: ARBITRARY_TOKEN" \
      --header Content-Type:"application/json" \
-     http://YOUR_SKARN_IP \
+     -X POST \
+     http://{{YOUR_SERVER_ADDRESS}}/v1/push \
      -d "{  \"notifications\": [    {      \"deviceTokens\": [\"b59430...0ca3a\"],      \"platform\": 1,      \"body\": \"Hello iOS\"    },    {      \"deviceTokens\": [\"APA91bGw...Aps-jSkBUC\"],      \"platform\": 2,      \"title\": \"Hello Android\"    }  ]"
 ```
 
