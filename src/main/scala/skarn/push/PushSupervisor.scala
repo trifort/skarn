@@ -34,8 +34,8 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
       val pushRouterSupervisorRef = pushRouterSupervisor(service.name)
       notifications.foreach { pushEntity =>
         // GCMのマルチキャストの上限が１０００なので１０００づつ送る
-        pushEntity.deviceTokens.grouped(1000).foreach { deviceTokens =>
-          pushRouterSupervisorRef forward pushEntity
+        pushEntity.deviceTokens.grouped(1000).foreach { tokens =>
+          pushRouterSupervisorRef forward pushEntity.copy(deviceTokens = tokens)
         }
       }
       val total = notifications.length
