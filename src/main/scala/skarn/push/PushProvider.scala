@@ -5,6 +5,7 @@ import java.io.InputStream
 
 import akka.actor.ActorSystem
 import com.notnoop.apns.{ApnsService, APNS}
+import com.notnoop.apns.internal.Utilities
 import spray.client.pipelining._
 import spray.httpx.{SprayJsonSupport}
 import spray.json._
@@ -50,10 +51,15 @@ trait IosPushProvider {
 trait IosProductionPushService {
   val certificate: InputStream
   val password: String
+
   def service = APNS.newService()
-    .withCert(certificate, password)
+    .withSSLContext(Utilities.newSSLContext(certificate, password, "PKCS12", algorithm))
     .withProductionDestination()
     .build()
+
+  protected lazy val algorithm = if (java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm") == null)
+    "sunx509" else
+    java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm")
 }
 
 trait ServiceBaseContext {
