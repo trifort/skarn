@@ -41,9 +41,10 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
   import PushActorProtocol._
   def receive: Receive = {
     case AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend) => {
+      val cachedLog = log
       send(deviceToken, Some(Notification(title, body)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
-        case Success(result) => log.info("GCM result; success: {}, failure: {}", result.success, result.failure)
-        case Failure(e) => log.error(e, "GCM request failed")
+        case Success(result) => cachedLog.info("GCM result; success: {}, failure: {}", result.success, result.failure)
+        case Failure(e) => cachedLog.error(e, "GCM request failed")
       }
     }
   }
