@@ -42,7 +42,7 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
   def receive: Receive = {
     case AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend) => {
       send(deviceToken, Some(Notification(title, body)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
-        case Success(result) => log.info("{}", result)
+        case Success(result) => log.info("GCM result; success: {}, failure: {}", result.success, result.failure)
         case Failure(e) => log.error(e, "GCM request failed")
       }
     }
