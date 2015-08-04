@@ -36,7 +36,7 @@ libraryDependencies ++= {
     "io.kamon" %% "kamon-core" % kamonVersion,
     "io.kamon" %% "kamon-akka" % kamonVersion,
     "io.kamon" %% "kamon-spray" % kamonVersion,
-    "io.kamon" %% "kamon-statsd" % kamonVersion,
+    "io.kamon" %% "kamon-datadog" % kamonVersion,
     "io.kamon" %% "kamon-system-metrics" % kamonVersion,
     "io.kamon" % "sigar-loader" % "1.6.6",
     "org.aspectj" % "aspectjweaver" % "1.8.5",
