@@ -28,10 +28,7 @@ trait PushServices {
         }
       }
     }
-    val props = SmallestMailboxPool(1)
-      .withResizer(DefaultResizer(1, 100, 1, 0.5, 0.2, 0.1, 3))
-      .withSupervisorStrategy(SupervisorStrategy.defaultStrategy)
-      .props(PushPlatformRouter.props(apnsService.service, apiKey))
+    val props = PushPlatformRouter.props(apnsService.service, apiKey)
     val actorRef = context.actorOf(PushRouterSupervisor.props(pushService.name, props), pushService.name)
     (pushService.name, actorRef)
   }.toMap
