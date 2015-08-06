@@ -35,7 +35,7 @@ object PushIosActor {
   def props(service: ApnsService) = Props(new PushIosActor(service))
 }
 
-class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with AndroidPushProvider {
+class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with AndroidPushStreamProvider {
   implicit val system = context.system
   implicit val executionContext = context.dispatcher
   import PushActorProtocol._

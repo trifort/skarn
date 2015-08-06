@@ -20,6 +20,7 @@ resolvers ++= Seq(
 
 libraryDependencies ++= {
   val akkaVersion       = "2.3.12"
+  val akkaStreamVersion = "1.0"
   val sprayVersion      = "1.3.3"
   val kamonVersion      = "0.4.0"
   Seq(
@@ -27,6 +28,9 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-slf4j"   % akkaVersion,
     "com.typesafe.akka" %%  "akka-multi-node-testkit"      % akkaVersion   % "test",
     "com.typesafe.akka" %%  "akka-testkit"                 % akkaVersion   % "test",
+    "com.typesafe.akka" %% "akka-stream-experimental" % akkaStreamVersion,
+    "com.typesafe.akka" %% "akka-http-core-experimental" % akkaStreamVersion,
+    "com.typesafe.akka" %% "akka-http-spray-json-experimental" % akkaStreamVersion,
     "io.spray"          %% "spray-can"       % sprayVersion,
     "io.spray"          %% "spray-routing"   % sprayVersion,
     "io.spray"          %% "spray-client"   % sprayVersion,

@@ -4,13 +4,21 @@ package push
 import java.io.InputStream
 
 import akka.actor.ActorSystem
+import akka.stream.ActorMaterializer
 import com.notnoop.apns.{ApnsService, APNS}
 import com.notnoop.apns.internal.Utilities
 import spray.client.pipelining._
 import spray.httpx.{SprayJsonSupport}
 import spray.json._
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Future, ExecutionContext}
 import scala.collection.JavaConversions._
+import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.model._
+import akka.http.scaladsl.marshalling.Marshal
+import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.model.headers._
+import scala.collection.immutable
 
 /**
  * Created by yusuke on 2015/04/27.
@@ -88,6 +96,43 @@ trait AndroidPushProvider extends ServiceBaseContext {
     pipeline {
       Post(requestUrl, GCMEntity(deviceTokens, notification, collapse_key = collapseKey, delay_while_idle = delayWhileIdle, time_to_live = timeToLive, data = data))
     }
+  }
+}
+
+trait AndroidPushStreamProvider extends ServiceBaseContext {
+  import PushRequestHandleActorProtocol.ExtraData
+  import GCMProtocol._
+
+  val requestUrl = "gcm-http.googleapis.com"
+  val requestPath = "/gcm/send"
+  val apiKey: String
+
+  implicit lazy val materializer = ActorMaterializer()
+
+  lazy val gcmConnectionFlow: Flow[HttpRequest, HttpResponse, Any] = {
+    Http()(system).outgoingConnectionTls(requestUrl)
+  }
+
+  def request(request: HttpRequest) = Source.single(request).via(gcmConnectionFlow).runWith(Sink.head)
+
+  def send(deviceTokens: Vector[String], notification: Option[Notification], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, data: Option[ExtraData] = None): Future[GCMResponse] = {
+    import GCMProtocol._
+    import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
+    import GCMJsonProtocol._
+    import HttpMethods._
+    val entity = GCMEntity(deviceTokens, notification, collapse_key = collapseKey, delay_while_idle = delayWhileIdle, time_to_live = timeToLive, data = data)
+    Marshal(entity).to[MessageEntity].flatMap { hRequest =>
+      request(HttpRequest(method= POST, uri= requestPath, headers= headers, entity= hRequest)).flatMap(Unmarshal(_).to[GCMResponse])
+    }
+  }
+
+  case class Authorization(value: String) extends CustomHeader {
+    val name = "Authorization"
+  }
+
+  private[this] lazy val headers = {
+    import MediaTypes._
+    immutable.Seq(Accept(`application/json`), Authorization(s"key=$apiKey"))
   }
 }
 
