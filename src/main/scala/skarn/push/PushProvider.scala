@@ -4,7 +4,7 @@ package push
 import java.io.InputStream
 
 import akka.actor.ActorSystem
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorAttributes, ActorMaterializer}
 import com.notnoop.apns.{ApnsService, APNS}
 import com.notnoop.apns.internal.Utilities
 import spray.client.pipelining._
@@ -113,7 +113,9 @@ trait AndroidPushStreamProvider extends ServiceBaseContext {
     Http()(system).outgoingConnectionTls(requestUrl)
   }
 
-  def request(request: HttpRequest) = Source.single(request).via(gcmConnectionFlow).runWith(Sink.head)
+  def request(request: HttpRequest) = Source.single(request)
+    .via(gcmConnectionFlow)
+    .runWith(Sink.head.withAttributes(ActorAttributes.dispatcher("gcm-dispatcher")))
 
   def send(deviceTokens: Vector[String], notification: Option[Notification], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, data: Option[ExtraData] = None): Future[GCMResponse] = {
     import GCMProtocol._
