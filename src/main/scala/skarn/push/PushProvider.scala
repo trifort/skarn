@@ -10,13 +10,13 @@ import com.notnoop.apns.internal.Utilities
 import spray.client.pipelining._
 import spray.httpx.{SprayJsonSupport}
 import spray.json._
-import scala.concurrent.{Future, ExecutionContext}
+import scala.concurrent.{Promise, Future, ExecutionContext}
 import scala.collection.JavaConversions._
 import akka.stream.scaladsl.{Flow, Sink, Source}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.unmarshalling.{PredefinedFromEntityUnmarshallers, Unmarshal}
 import akka.http.scaladsl.model.headers._
 import scala.collection.immutable
 
@@ -121,10 +121,19 @@ trait AndroidPushStreamProvider extends ServiceBaseContext {
     import GCMProtocol._
     import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
     import GCMJsonProtocol._
+    import PredefinedFromEntityUnmarshallers._
     import HttpMethods._
     val entity = GCMEntity(deviceTokens, notification, collapse_key = collapseKey, delay_while_idle = delayWhileIdle, time_to_live = timeToLive, data = data)
     Marshal(entity).to[MessageEntity].flatMap { hRequest =>
-      request(HttpRequest(method= POST, uri= requestPath, headers= headers, entity= hRequest)).flatMap(Unmarshal(_).to[GCMResponse])
+      request(HttpRequest(method= POST, uri= requestPath, headers= headers, entity= hRequest)).flatMap { response =>
+        Unmarshal(response).to[GCMResponse].recoverWith {
+          case e => {
+            val p = Promise.apply()
+            Unmarshal(response).to[String].foreach(s => p.failure(new DeserializationException(s)))
+            p.future
+          }
+        }
+      }
     }
   }
 
