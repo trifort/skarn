@@ -58,7 +58,7 @@ javaOptions ++= Seq(
   "-Djvm-debug 5005",
   "-Dkamon.statsd.hostname=172.17.8.101",
   s"-DCONFIG_PATH=${baseDirectory.value.getAbsolutePath}/service/service.conf",
-  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns/apns.p12"
+  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns"
 )
 
 fork in run := true
@@ -70,7 +70,7 @@ javaOptions in Revolver.reStart ++= Seq(
   "-Djvm-debug 5005",
   "-Dkamon.statsd.hostname=172.17.8.101",
   s"-DCONFIG_PATH=${baseDirectory.value.getAbsolutePath}/service/service.conf",
-  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns/apns.p12"
+  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns"
 )
 
 javaOptions in Revolver.reStart <++= AspectjKeys.weaverOptions in Aspectj
