@@ -2,11 +2,10 @@ package skarn
 package push
 
 import akka.actor.{ActorLogging, Props, Actor}
+import kamon.Kamon
 import skarn.push.GCMProtocol.Notification
 import skarn.push.PushRequestHandleActorProtocol.ExtraData
-import scala.collection.mutable
 import scala.util.{Failure, Success}
-import akka.routing.{SmallestMailboxPool}
 import com.notnoop.apns.ApnsService
 import definition.Platform
 
@@ -42,9 +41,16 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
   def receive: Receive = {
     case AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend) => {
       val cachedLog = log
+      val gcmTrace = Kamon.tracer.newContext("gcm-trace")
       send(deviceToken, Some(Notification(title, body)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
-        case Success(result) => cachedLog.info("GCM result; success: {}, failure: {}", result.success, result.failure)
-        case Failure(e) => cachedLog.error(e, "GCM request failed")
+        case Success(result) => {
+          gcmTrace.finish()
+          cachedLog.info("GCM result; success: {}, failure: {}", result.success, result.failure)
+        }
+        case Failure(e) => {
+          gcmTrace.finish()
+          cachedLog.error(e, "GCM request failed")
+        }
       }
     }
   }
