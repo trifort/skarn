@@ -9,7 +9,7 @@ import skarn.filter.FilterProtocol.CheckedHeaderList
 import skarn.push._
 import spray.routing.Directives._
 
-class PushRoute(val context: ActorContext) extends BasicRoute with PushServices {
+class PushRoute(val context: ActorContext, log: String => Unit) extends BasicRoute with PushServices {
   val resource = "push"
 
   val route = pathPrefix(version / resource) {
@@ -19,6 +19,7 @@ class PushRoute(val context: ActorContext) extends BasicRoute with PushServices 
       import PushRequestHandleActorProtocol._
       entity(as[PushRequest]) { req =>
         noop { ctx =>
+          log("push request received")
           val pushRequestHandleActor = context.actorOf(PushRequestHandler.props(ctx, services, req))
           pushRequestHandleActor ! CheckedHeaderList(ctx.request.headers)
         }
