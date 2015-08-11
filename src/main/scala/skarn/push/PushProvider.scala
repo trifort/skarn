@@ -11,7 +11,7 @@ import akka.stream.io._
 import akka.stream.scaladsl.Tcp.OutgoingConnection
 import akka.stream.{BidiShape, ActorAttributes, ActorMaterializer}
 import akka.util.ByteString
-import com.notnoop.apns.{EnhancedApnsNotification, ApnsService, APNS}
+import com.notnoop.apns.{ApnsService, APNS}
 import com.notnoop.apns.internal.Utilities
 import spray.client.pipelining._
 import spray.httpx.{SprayJsonSupport}
@@ -101,11 +101,14 @@ trait IosPushStreamProvider extends ServiceBaseContext {
   }
 
   def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None) = {
+    import Apns._
     import APNSProtocol._
     import APNSJsonProtocol._
     val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
-    val data = deviceTokens.map(new EnhancedApnsNotification(1, EnhancedApnsNotification.MAXIMUM_EXPIRY, _, payload)).map(_.marshall()).map(ByteString(_))
-    Source(data).via(connection).runWith(Sink.ignore)
+    val data = deviceTokens.map(token => FrameData(Seq(DeviceToken(token), Payload(payload))).serialize)
+    Source(data).via(connection).runWith(Sink.fold(List.empty[ByteString]) { (acc, result) =>
+      result :: acc
+    })
   }
 }
 
@@ -125,8 +128,8 @@ trait SSLContextFactory {
     val tmf = TrustManagerFactory.getInstance(ksAlgorithm)
     tmf.init(null.asInstanceOf[KeyStore])
 
-    val sslContext = SSLContext.getInstance("TLS");
-    sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+    val sslContext = SSLContext.getInstance("TLS")
+    sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null)
     sslContext
   }
 }
