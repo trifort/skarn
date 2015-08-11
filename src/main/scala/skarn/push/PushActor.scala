@@ -19,19 +19,30 @@ object PushActorProtocol {
   case class AndroidPush(deviceTokens: Vector[String], title: Option[String], body: Option[String], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, extend: Option[ExtraData] = None)
 }
 
-class PushIosActor(service: ApnsService) extends Actor with IosPushProvider {
+class PushIosActor(val service: ApnsService2) extends Actor with IosPushStreamProvider with ActorLogging {
   import PushActorProtocol._
+
+  implicit val system = context.system
+  implicit val executionContext = context.dispatcher
 
   implicit val pushService = service
   def receive: Receive = {
     case IosPush(deviceTokens, title, body, badge, sound) => {
-      send(deviceTokens, title, body, badge, sound)
+      val cachedLog = log
+      send(deviceTokens, title, body, badge, sound).onComplete {
+        case Success(result) => {
+          cachedLog.info("APNS result; success: {}, failure: {}", result.toString)
+        }
+        case Failure(e) => {
+          cachedLog.error(e, "APNS request failed")
+        }
+      }
     }
   }
 }
 
 object PushIosActor {
-  def props(service: ApnsService) = Props(new PushIosActor(service))
+  def props(service: ApnsService2) = Props(new PushIosActor(service))
 }
 
 class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with AndroidPushStreamProvider {
@@ -60,7 +71,7 @@ object PushAndroidActor {
   def props(apiKey: String) = Props(new PushAndroidActor(apiKey))
 }
 
-class PushPlatformRouter(val apnsService: ApnsService, val apiKey: String) extends Actor
+class PushPlatformRouter(val apnsService: ApnsService2, val apiKey: String) extends Actor
 with PlatformActorCreator with ActorLogging {
   import PushActorProtocol._
   import PushRequestHandleActorProtocol._
@@ -78,11 +89,11 @@ with PlatformActorCreator with ActorLogging {
 }
 
 object PushPlatformRouter {
-  def props(apnsService: ApnsService, apiKey: String) = Props(new PushPlatformRouter(apnsService, apiKey))
+  def props(apnsService: ApnsService2, apiKey: String) = Props(new PushPlatformRouter(apnsService, apiKey))
 }
 
 trait PlatformActorCreator { this: Actor =>
-  val apnsService: ApnsService
+  val apnsService: ApnsService2
   val apiKey: String
   lazy val ios = context.actorOf(PushIosActor.props(apnsService))
   lazy val android = context.actorOf(PushAndroidActor.props(apiKey))

@@ -2,17 +2,23 @@ package skarn
 package push
 
 import java.io.InputStream
-
+import java.security.KeyStore
+import javax.net.ssl.SSLContext
+import javax.net.ssl.KeyManagerFactory
+import javax.net.ssl.TrustManagerFactory
 import akka.actor.ActorSystem
-import akka.stream.{ActorAttributes, ActorMaterializer}
-import com.notnoop.apns.{ApnsService, APNS}
+import akka.stream.io._
+import akka.stream.scaladsl.Tcp.OutgoingConnection
+import akka.stream.{BidiShape, ActorAttributes, ActorMaterializer}
+import akka.util.ByteString
+import com.notnoop.apns.{EnhancedApnsNotification, ApnsService, APNS}
 import com.notnoop.apns.internal.Utilities
 import spray.client.pipelining._
 import spray.httpx.{SprayJsonSupport}
 import spray.json._
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import scala.collection.JavaConversions._
-import akka.stream.scaladsl.{Flow, Sink, Source}
+import akka.stream.scaladsl._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.marshalling.Marshal
@@ -66,6 +72,67 @@ trait IosProductionPushService {
     .build()
 
   protected lazy val algorithm = if (java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm") == null)
+    "sunx509" else
+    java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm")
+}
+
+
+trait IosPushStreamProvider extends ServiceBaseContext {
+
+  val service: ApnsService2
+
+  val requestUrl = "gateway.push.apple.com"
+
+  implicit lazy val materializer = ActorMaterializer()
+
+  lazy val tslBidiFlow = SslTls(service.sslContext, NegotiateNewSession, Role.client)
+
+  lazy val apnsConnection = Tcp().outgoingConnection(requestUrl, 2195)
+
+  lazy val connection = parser.atop(tslBidiFlow).joinMat(apnsConnection) { (_, tcpConnFuture) =>
+    tcpConnFuture map { tcpConn => OutgoingConnection(tcpConn.localAddress, tcpConn.remoteAddress) }
+  }
+
+  val parser = BidiFlow() { implicit b =>
+    val wrapTls = b.add(Flow[ByteString].map(b => {println(b.toString); SendBytes(b)}))
+    val unwrapTls = b.add(Flow[SslTlsInbound].collect { case SessionBytes(_, bytes) => {println(bytes.toString); bytes} })
+
+    BidiShape(wrapTls, unwrapTls)
+  }
+
+  def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None) = {
+    import APNSProtocol._
+    import APNSJsonProtocol._
+    val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
+    val data = deviceTokens.map(new EnhancedApnsNotification(1, EnhancedApnsNotification.MAXIMUM_EXPIRY, _, payload)).map(_.marshall()).map(ByteString(_))
+    Source(data).via(connection).runWith(Sink.ignore)
+  }
+}
+
+trait ApnsService2 extends SSLContextFactory with KeyManagerAlgorithm {
+  val certificate: InputStream
+  val password: String
+  lazy val sslContext = createSSLContext(certificate, password, "PKCS12", algorithm)
+}
+
+trait SSLContextFactory {
+  def createSSLContext(cert: InputStream, password: String, ksType: String, ksAlgorithm: String): SSLContext = {
+    val ks = KeyStore.getInstance(ksType)
+    ks.load(cert, password.toCharArray)
+    val kmf = KeyManagerFactory.getInstance(ksAlgorithm)
+    kmf.init(ks, password.toCharArray)
+
+    val tmf = TrustManagerFactory.getInstance(ksAlgorithm)
+    tmf.init(null.asInstanceOf[KeyStore])
+
+    val sslContext = SSLContext.getInstance("TLS");
+    sslContext.init(kmf.getKeyManagers(), tmf.getTrustManagers(), null);
+    sslContext
+  }
+}
+
+trait KeyManagerAlgorithm {
+  lazy val algorithm = if (java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm") == null)
     "sunx509" else
     java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm")
 }
