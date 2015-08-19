@@ -6,6 +6,10 @@ import akka.testkit.{TestProbe, TestKit}
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{MustMatchers, WordSpecLike}
 import definition.Platform
+import skarn.push.PushFlow.PushEntityWrap
+import skarn.push.PushRequestQueue.{Command, QueueRequest}
+
+import scala.concurrent.Promise
 
 /**
  * Created by yusuke on 15/07/06.
@@ -32,11 +36,12 @@ class PushPlatformActorTest extends TestKit(ActorSystem({"PushPlatformActorTest"
     "Platformに応じてメッセージを各プラットフォームのPUSHアクターにforwardする" in {
       import PushRequestHandleActorProtocol._
       import PushActorProtocol._
+      val promise = Promise[Command]
       val testPushPlatformRouter = system.actorOf(TestPushPlatformRouter.props())
-      testPushPlatformRouter ! PushEntity(Vector("deviceToken"), Platform.Ios, None, Some("ios"))
-      iosProbe1.expectMsg(IosPush(Vector("deviceToken"), None, Some("ios")))
-      testPushPlatformRouter ! PushEntity(Vector("deviceToken"), Platform.Android, Some("android"), None)
-      androidProbe1.expectMsg(AndroidPush(Vector("deviceToken"), Some("android"), None))
+      testPushPlatformRouter ! PushEntityWrap(QueueRequest(0, PushEntity(Vector("deviceToken"), Platform.Ios, None, Some("ios")), None, 0), promise)
+      iosProbe1.expectMsg(IosPushWrap(0, promise, IosPush(Vector("deviceToken"), None, Some("ios"))))
+      testPushPlatformRouter ! PushEntityWrap(QueueRequest(0, PushEntity(Vector("deviceToken"), Platform.Android, Some("android"), None), None, 0), promise)
+      androidProbe1.expectMsg(AndroidPushWrap(0, promise, AndroidPush(Vector("deviceToken"), Some("android"), None)))
     }
   }
 }
