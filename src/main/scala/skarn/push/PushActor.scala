@@ -19,8 +19,8 @@ import definition.Platform
 object PushActorProtocol {
   case class IosPush(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None)
   case class AndroidPush(deviceTokens: Vector[String], title: Option[String], body: Option[String], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, extend: Option[ExtraData] = None)
-  case class IosPushWrap(id: Int, promise: Promise[Command], iosPush: IosPush)
-  case class AndroidPushWrap(id: Int, promise: Promise[Command], androidPush: AndroidPush)
+  case class IosPushWrap(id: Int, promise: Promise[Command], iosPush: IosPush, start: Option[Long] = None)
+  case class AndroidPushWrap(id: Int, promise: Promise[Command], androidPush: AndroidPush, start: Option[Long] = None)
 }
 
 class PushIosActor(service: ApnsService) extends Actor with IosPushProvider {
@@ -29,9 +29,9 @@ class PushIosActor(service: ApnsService) extends Actor with IosPushProvider {
 
   implicit val pushService = service
   def receive: Receive = {
-    case IosPushWrap(id, promise, IosPush(deviceTokens, title, body, badge, sound)) => {
+    case IosPushWrap(id, promise, IosPush(deviceTokens, title, body, badge, sound), start) => {
       send(deviceTokens, title, body, badge, sound)
-      promise.success(Done(id))
+      promise.success(Done(id, start))
     }
   }
 }
@@ -46,13 +46,13 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
   implicit val executionContext = context.dispatcher
   import PushActorProtocol._
   def receive: Receive = {
-    case AndroidPushWrap(id, promise, AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend)) => {
+    case AndroidPushWrap(id, promise, AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend), start) => {
       val cachedLog = log
       val gcmTrace = Kamon.tracer.newContext("gcm-trace")
       send(deviceToken, Some(Notification(title, body)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
         case Success(result) => {
           gcmTrace.finish()
-          promise.success(Done(id))
+          promise.success(Done(id, start))
           cachedLog.info("GCM result; success: {}, failure: {}", result.success, result.failure)
         }
         case Failure(e) => {
@@ -76,11 +76,11 @@ with PlatformActorCreator with ActorLogging {
   import PushFlow._
 
   def receive: Receive = {
-    case PushEntityWrap(QueueRequest(id, entity@PushEntity(_, platform, _, _, _, _, _, _, _, _), _, _), promise) => {
+    case PushEntityWrap(QueueRequest(id, entity@PushEntity(_, platform, _, _, _, _, _, _, _, _), start, _), promise) => {
       import  Platform._
       platform match {
-        case Ios => ios forward IosPushWrap(id, promise, IosPush(entity.deviceTokens, entity.title, entity.body, entity.badge, entity.sound))
-        case Android => android forward AndroidPushWrap(id, promise, AndroidPush(entity.deviceTokens, entity.title, entity.body, entity.collapseKey, entity.delayWhileIdle, entity.timeToLive, entity.data))
+        case Ios => ios forward IosPushWrap(id, promise, IosPush(entity.deviceTokens, entity.title, entity.body, entity.badge, entity.sound), start)
+        case Android => android forward AndroidPushWrap(id, promise, AndroidPush(entity.deviceTokens, entity.title, entity.body, entity.collapseKey, entity.delayWhileIdle, entity.timeToLive, entity.data), start)
         case Unknown => log.warning("unrecognized platform received")
       }
     }

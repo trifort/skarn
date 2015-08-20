@@ -6,9 +6,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import akka.actor._
 import skarn.filter.{FilterResultActor, FilterEntryBase, AuthTokenFilter}
 import skarn.definition.{PlatformJsonProtocol, Platform}
-import skarn.push.PushRequestHandleActorProtocol.{PushRequest, PushEntity}
+import skarn.push.PushRequestHandleActorProtocol.{PushRequest}
 import skarn.push.PushRequestQueue.{QueueRequest, Append}
-import skarn.routing.{ErrorResponseProtocol, ErrorFormat}
+import skarn.routing.{ErrorResponseProtocol}
 import spray.http.StatusCodes
 import spray.json._
 import spray.routing.RequestContext
@@ -40,7 +40,7 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
         // GCMのマルチキャストの上限が１０００なので１０００づつ送る
         pushEntity.deviceTokens.grouped(1000).foreach { tokens =>
           val id = atomicInteger.incrementAndGet()
-          pushRouterSupervisorRef forward Append(QueueRequest(id, pushEntity.copy(deviceTokens = tokens)))
+          pushRouterSupervisorRef forward Append(QueueRequest(id, pushEntity.copy(deviceTokens = tokens), Some(System.nanoTime())))
         }
       }
       val total = notifications.length

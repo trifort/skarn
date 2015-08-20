@@ -5,7 +5,6 @@ import akka.stream.ActorMaterializer
 import akka.stream.actor.{MaxInFlightRequestStrategy, ActorSubscriber, ActorPublisher}
 import akka.stream.scaladsl.{Source, Sink}
 import skarn.push.PushRequestHandleActorProtocol.PushEntity
-import java.util.Date
 
 
 /**
@@ -16,13 +15,13 @@ object PushRequestQueue {
   sealed trait Command
   case class Append(message: QueueRequest)
   case object StartStream
-  case class Done(id: Int) extends Command
+  case class Done(id: Int, start: Option[Long] = None) extends Command
   case class Retry(id: Int) extends Command
   case class GetBuffer(n: Int = -1)
   case class CurrentBuffer(buffer: Vector[QueueRequest])
   case class GetProcessing(n: Int = -1)
   case class CurrentProcessing(buffer: Map[Int, QueueRequest])
-  case class QueueRequest(id: Int, entity: PushEntity, start: Option[Date] = None, retry: Short = 0)
+  case class QueueRequest(id: Int, entity: PushEntity, start: Option[Long] = None, retry: Short = 0)
   def props(maxRetry: Short, pushActorRef: ActorRef): Props = Props(new PushRequestQueue(maxRetry, pushActorRef))
 }
 
@@ -58,8 +57,15 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends ActorSub
         deliverBuf()
       }
     }
-    case Done(id) => {
-      log.info("push id: {} is completed", id)
+    case Done(id, start) => {
+      start match {
+        case Some(timestamp) => {
+          log.info("push id: {} is completed in {}ns", id, System.nanoTime() - timestamp)
+        }
+        case None => {
+          log.info("id: {} is completed", id)
+        }
+      }
       processing = processing - id
     }
     case Retry(id) => {
