@@ -40,7 +40,6 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
         // GCMのマルチキャストの上限が１０００なので１０００づつ送る
         pushEntity.deviceTokens.grouped(1000).foreach { tokens =>
           val id = atomicInteger.incrementAndGet()
-          log.info("id = {}", id)
           pushRouterSupervisorRef forward Append(QueueRequest(id, pushEntity.copy(deviceTokens = tokens)))
         }
       }
