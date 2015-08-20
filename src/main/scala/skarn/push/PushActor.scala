@@ -8,7 +8,6 @@ import skarn.push.PushRequestHandleActorProtocol.ExtraData
 import skarn.push.PushRequestQueue.{Command, QueueRequest}
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
-import com.notnoop.apns.ApnsService
 import definition.Platform
 
 /**
@@ -23,9 +22,12 @@ object PushActorProtocol {
   case class AndroidPushWrap(id: Int, promise: Promise[Command], androidPush: AndroidPush, start: Option[Long] = None)
 }
 
-class PushIosActor(service: ApnsService) extends Actor with IosPushProvider {
+class PushIosActor(val service: ApnsService2) extends Actor with IosPushStreamProvider with ActorLogging {
   import PushActorProtocol._
   import PushRequestQueue._
+
+  implicit val system = context.system
+  implicit val executionContext = context.dispatcher
 
   implicit val pushService = service
   def receive: Receive = {
@@ -37,7 +39,7 @@ class PushIosActor(service: ApnsService) extends Actor with IosPushProvider {
 }
 
 object PushIosActor {
-  def props(service: ApnsService) = Props(new PushIosActor(service))
+  def props(service: ApnsService2) = Props(new PushIosActor(service))
 }
 
 class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with AndroidPushStreamProvider {
@@ -69,7 +71,7 @@ object PushAndroidActor {
   def props(apiKey: String) = Props(new PushAndroidActor(apiKey))
 }
 
-class PushPlatformRouter(val apnsService: ApnsService, val apiKey: String) extends Actor
+class PushPlatformRouter(val apnsService: ApnsService2, val apiKey: String) extends Actor
 with PlatformActorCreator with ActorLogging {
   import PushActorProtocol._
   import PushRequestHandleActorProtocol._
@@ -88,11 +90,11 @@ with PlatformActorCreator with ActorLogging {
 }
 
 object PushPlatformRouter {
-  def props(apnsService: ApnsService, apiKey: String) = Props(new PushPlatformRouter(apnsService, apiKey))
+  def props(apnsService: ApnsService2, apiKey: String) = Props(new PushPlatformRouter(apnsService, apiKey))
 }
 
 trait PlatformActorCreator { this: Actor =>
-  val apnsService: ApnsService
+  val apnsService: ApnsService2
   val apiKey: String
   lazy val ios = context.actorOf(PushIosActor.props(apnsService))
   lazy val android = context.actorOf(PushAndroidActor.props(apiKey))

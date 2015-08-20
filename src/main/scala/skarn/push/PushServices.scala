@@ -18,7 +18,7 @@ trait PushServices {
   val services: Map[String, ActorRef] = PushServiceInfo.services.map {pushService =>
     import PushRequestQueue.StartStream
     val apiKey = pushService.gcm.apiKey
-    val apnsService = new IosPushProvider with IosProductionPushService {
+    val apnsService = new ApnsService2 {
       val password = pushService.apns.password
       val certificate = Apns.loadCertificateFromFile(pushService.apns.certPath) match {
         case Success(file) => file
@@ -28,7 +28,7 @@ trait PushServices {
         }
       }
     }
-    val props = PushPlatformRouter.props(apnsService.service, apiKey)
+    val props = PushPlatformRouter.props(apnsService, apiKey)
     val pushActorRef = context.actorOf(PushRouterSupervisor.props(pushService.name, props), pushService.name)
     val pushRequestQueue = context.actorOf(PushRequestQueue.props(3, pushActorRef), s"queue-${pushService.name}")
     pushRequestQueue ! StartStream
