@@ -1,10 +1,13 @@
 package skarn
 package push
 
+import java.util.concurrent.atomic.AtomicInteger
+
 import akka.actor._
 import skarn.filter.{FilterResultActor, FilterEntryBase, AuthTokenFilter}
 import skarn.definition.{PlatformJsonProtocol, Platform}
 import skarn.push.PushRequestHandleActorProtocol.{PushRequest, PushEntity}
+import skarn.push.PushRequestQueue.{QueueRequest, Append}
 import skarn.routing.{ErrorResponseProtocol, ErrorFormat}
 import spray.http.StatusCodes
 import spray.json._
@@ -24,7 +27,8 @@ object PushSupervisorJsonProtocol extends DefaultJsonProtocol {
   implicit val ProcessingFormat = jsonFormat2(Processing)
 }
 
-class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef]) extends Actor with ActorLogging {
+
+class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef], atomicInteger: AtomicInteger) extends Actor with ActorLogging {
   import PushActorProtocol._
   import PushSupervisorProtocol._
   import PushRequestHandleActorProtocol._
@@ -35,7 +39,9 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
       notifications.foreach { pushEntity =>
         // GCMのマルチキャストの上限が１０００なので１０００づつ送る
         pushEntity.deviceTokens.grouped(1000).foreach { tokens =>
-          pushRouterSupervisorRef forward pushEntity.copy(deviceTokens = tokens)
+          val id = atomicInteger.incrementAndGet()
+          log.info("id = {}", id)
+          pushRouterSupervisorRef forward Append(QueueRequest(id, pushEntity.copy(deviceTokens = tokens)))
         }
       }
       val total = notifications.length
@@ -46,10 +52,9 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
 }
 
 object PushSupervisor {
-  def props(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef]) = Props(new PushSupervisor(responder, pushRouterSupervisor))
+  val atomicId = new AtomicInteger()
+  def props(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef]) = Props(new PushSupervisor(responder, pushRouterSupervisor, atomicId))
 }
-
-
 
 
 object PushRequestHandleActorProtocol {

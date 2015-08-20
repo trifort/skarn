@@ -3,7 +3,6 @@ package push
 
 import java.io.FileNotFoundException
 import akka.actor._
-import akka.routing.{DefaultResizer, SmallestMailboxPool}
 
 import scala.util.{Success, Failure}
 
@@ -17,6 +16,7 @@ class InvalidAPNSCertificateError(msg: String) extends Error(msg) with Serializa
 trait PushServices {
   val context: ActorContext
   val services: Map[String, ActorRef] = PushServiceInfo.services.map {pushService =>
+    import PushRequestQueue.StartStream
     val apiKey = pushService.gcm.apiKey
     val apnsService = new IosPushProvider with IosProductionPushService {
       val password = pushService.apns.password
@@ -29,7 +29,10 @@ trait PushServices {
       }
     }
     val props = PushPlatformRouter.props(apnsService.service, apiKey)
-    val actorRef = context.actorOf(PushRouterSupervisor.props(pushService.name, props), pushService.name)
-    (pushService.name, actorRef)
+    val pushActorRef = context.actorOf(PushRouterSupervisor.props(pushService.name, props), pushService.name)
+    val pushRequestQueue = context.actorOf(PushRequestQueue.props(3, pushActorRef), s"queue-${pushService.name}")
+    pushRequestQueue ! StartStream
+    (pushService.name, pushRequestQueue)
   }.toMap
+
 }
