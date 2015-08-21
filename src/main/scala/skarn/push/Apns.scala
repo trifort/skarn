@@ -4,7 +4,6 @@ import java.io.FileInputStream
 import java.nio.ByteOrder
 import akka.util.ByteString
 import scala.util.Try
-import com.notnoop.apns.internal.Utilities
 
 /**
  * Created by yusuke on 15/07/08.
@@ -24,7 +23,7 @@ object Apns {
 
   case class DeviceToken(token: String) extends FrameItem {
     val id: Byte = 1
-    val data = ByteString(Utilities.decodeHex(token))
+    val data = ByteString(decodeHex(token))
   }
 
   case class Payload(payload: String) extends FrameItem {
@@ -50,6 +49,26 @@ object Apns {
         .putInt(frameData.length)
         .result() ++ frameData
     }
+  }
+
+  def decodeHex(text: String): Array[Byte] = {
+    def convert(c: Char): Int = {
+      if ('0' <= c && c <= '9') {
+        c - '0'
+      } else if ('a' <= c && c <= 'f') {
+        (c - 'a') + 10
+      } else if ('A' <= c && c <= 'F') {
+        (c - 'A') + 10
+      } else {
+        throw new Error("Illegal device token")
+      }
+    }
+    text.replaceAll("[ -]", "")
+      .toArray
+      .grouped(2)
+      .map(pair => convert(pair(0)) * 16 + convert(pair(1)))
+      .map(_.toByte)
+      .toArray
   }
 
   def loadCertificateFromFile(path: String) = {

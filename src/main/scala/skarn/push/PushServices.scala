@@ -18,7 +18,7 @@ trait PushServices {
   val services: Map[String, ActorRef] = PushServiceInfo.services.map {pushService =>
     import PushRequestQueue.StartStream
     val apiKey = pushService.gcm.apiKey
-    val apnsService = new ApnsService2 {
+    val apnsService = new ApnsService {
       val password = pushService.apns.password
       val certificate = Apns.loadCertificateFromFile(pushService.apns.certPath) match {
         case Success(file) => file

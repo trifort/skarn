@@ -45,7 +45,6 @@ libraryDependencies ++= {
     "io.kamon" %% "kamon-system-metrics" % kamonVersion,
     "io.kamon" % "sigar-loader" % "1.6.6",
     "org.aspectj" % "aspectjweaver" % "1.8.5",
-    "com.notnoop.apns" % "apns" % "1.0.0.Beta6",
     "ch.qos.logback"  %  "logback-classic"    % "1.1.3"
   )
 }

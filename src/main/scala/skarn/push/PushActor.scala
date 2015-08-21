@@ -24,7 +24,7 @@ object PushActorProtocol {
   case class AndroidPushWrap(id: Int, promise: Promise[Command], androidPush: AndroidPush, start: Option[Long] = None)
 }
 
-class PushIosActor(val service: ApnsService2) extends Actor with IosPushStreamProvider with ActorLogging {
+class PushIosActor(val service: ApnsService) extends Actor with IosPushStreamProvider with ActorLogging {
   import PushActorProtocol._
   import PushRequestQueue._
 
@@ -52,10 +52,10 @@ class PushIosActor(val service: ApnsService2) extends Actor with IosPushStreamPr
 }
 
 object PushIosActor {
-  def props(service: ApnsService2) = Props(new PushIosActor(service))
+  def props(service: ApnsService) = Props(new PushIosActor(service))
 }
 
-class PushIosRouter(routeeNum: Int, service: ApnsService2) extends Actor {
+class PushIosRouter(routeeNum: Int, service: ApnsService) extends Actor {
   val routerProps = SmallestMailboxPool(1).withResizer(DefaultResizer(1, routeeNum, 1, 0.5, 0.2, 0.1, 3))
     .withSupervisorStrategy(SupervisorStrategy.defaultStrategy)
     .props(PushIosActor.props(service))
@@ -70,7 +70,7 @@ class PushIosRouter(routeeNum: Int, service: ApnsService2) extends Actor {
 }
 
 object PushIosRouter {
-  def props(routeeNum: Int, service: ApnsService2) = Props(new PushIosRouter(routeeNum, service))
+  def props(routeeNum: Int, service: ApnsService) = Props(new PushIosRouter(routeeNum, service))
 }
 
 class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with AndroidPushStreamProvider {
@@ -102,7 +102,7 @@ object PushAndroidActor {
   def props(apiKey: String) = Props(new PushAndroidActor(apiKey))
 }
 
-class PushPlatformRouter(val apnsService: ApnsService2, val apiKey: String) extends Actor
+class PushPlatformRouter(val apnsService: ApnsService, val apiKey: String) extends Actor
 with PlatformActorCreator with ActorLogging {
   import PushActorProtocol._
   import PushRequestHandleActorProtocol._
@@ -121,11 +121,11 @@ with PlatformActorCreator with ActorLogging {
 }
 
 object PushPlatformRouter {
-  def props(apnsService: ApnsService2, apiKey: String) = Props(new PushPlatformRouter(apnsService, apiKey))
+  def props(apnsService: ApnsService, apiKey: String) = Props(new PushPlatformRouter(apnsService, apiKey))
 }
 
 trait PlatformActorCreator { this: Actor =>
-  val apnsService: ApnsService2
+  val apnsService: ApnsService
   val apiKey: String
   lazy val ios = context.actorOf(PushIosRouter.props(8, apnsService))
   lazy val android = context.actorOf(PushAndroidActor.props(apiKey))

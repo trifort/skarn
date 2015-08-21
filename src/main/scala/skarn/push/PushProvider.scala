@@ -11,13 +11,10 @@ import akka.stream.io._
 import akka.stream.scaladsl.Tcp.OutgoingConnection
 import akka.stream.{BidiShape, ActorAttributes, ActorMaterializer}
 import akka.util.ByteString
-import com.notnoop.apns.{ApnsService, APNS}
-import com.notnoop.apns.internal.Utilities
 import spray.client.pipelining._
 import spray.httpx.{SprayJsonSupport}
 import spray.json._
 import scala.concurrent.{Promise, Future, ExecutionContext}
-import scala.collection.JavaConversions._
 import akka.stream.scaladsl._
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model._
@@ -52,34 +49,10 @@ object APNSProtocol {
   case class APNSEntity(aps: Notification)
 }
 
-trait IosPushProvider {
-
-  def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None)(implicit service: ApnsService) = {
-    import APNSProtocol._
-    import APNSJsonProtocol._
-    val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
-    service.push(deviceTokens.toIterable, payload)
-  }
-}
-
-trait IosProductionPushService {
-  val certificate: InputStream
-  val password: String
-
-  def service = APNS.newService()
-    .withSSLContext(Utilities.newSSLContext(certificate, password, "PKCS12", algorithm))
-    .withProductionDestination()
-    .build()
-
-  protected lazy val algorithm = if (java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm") == null)
-    "sunx509" else
-    java.security.Security.getProperty("ssl.KeyManagerFactory.algorithm")
-}
-
 
 trait IosPushStreamProvider extends ServiceBaseContext {
 
-  val service: ApnsService2
+  val service: ApnsService
 
   val requestUrl = "gateway.push.apple.com"
 
@@ -129,7 +102,7 @@ trait IosPushStreamProvider extends ServiceBaseContext {
   }
 }
 
-trait ApnsService2 extends SSLContextFactory with KeyManagerAlgorithm {
+trait ApnsService extends SSLContextFactory with KeyManagerAlgorithm {
   val certificate: InputStream
   val password: String
   lazy val sslContext = createSSLContext(certificate, password, "PKCS12", algorithm)
