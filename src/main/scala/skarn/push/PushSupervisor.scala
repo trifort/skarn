@@ -2,7 +2,6 @@ package skarn
 package push
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.actor._
 import skarn.filter.{FilterResultActor, FilterEntryBase, AuthTokenFilter}
 import skarn.definition.{PlatformJsonProtocol, Platform}
@@ -29,16 +28,21 @@ object PushSupervisorJsonProtocol extends DefaultJsonProtocol {
 
 
 class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef], atomicInteger: AtomicInteger) extends Actor with ActorLogging {
-  import PushActorProtocol._
   import PushSupervisorProtocol._
   import PushRequestHandleActorProtocol._
 
   def receive: Receive =  {
     case PushPayload(PushRequest(notifications), service) => {
+      import definition.Platform._
       val pushRouterSupervisorRef = pushRouterSupervisor(service.name)
       notifications.foreach { pushEntity =>
-        // GCMのマルチキャストの上限が１０００なので１０００づつ送る
-        pushEntity.deviceTokens.grouped(1000).foreach { tokens =>
+        // split for multicast push
+        val deviceTokens = pushEntity.platform match {
+          case Ios => pushEntity.deviceTokens.grouped(500)  // for APNS, payloads are duplicate so multicast limit becomes lower
+          case Android => pushEntity.deviceTokens.grouped(1000) // GCM multicast limit is 1000
+          case Unknown => Iterator(Vector.empty[String])
+        }
+        deviceTokens.foreach { tokens =>
           val id = atomicInteger.incrementAndGet()
           pushRouterSupervisorRef forward Append(QueueRequest(id, pushEntity.copy(deviceTokens = tokens), Some(System.nanoTime())))
         }
