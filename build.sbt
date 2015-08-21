@@ -34,7 +34,6 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-stream-testkit-experimental" % akkaStreamVersion % "test",
     "io.spray"          %% "spray-can"       % sprayVersion,
     "io.spray"          %% "spray-routing"   % sprayVersion,
-    "io.spray"          %% "spray-client"   % sprayVersion,
     "io.spray"          %% "spray-json"      % "1.3.2",
     "io.spray" %% "spray-testkit" % sprayVersion % "test",
     "org.scalatest"     %% "scalatest"       % "2.2.4"       % "test",
