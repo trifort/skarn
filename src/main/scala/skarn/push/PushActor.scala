@@ -1,7 +1,9 @@
 package skarn
 package push
 
-import akka.actor.{ActorLogging, Props, Actor}
+import java.nio.ByteOrder
+import akka.actor._
+import akka.routing.{DefaultResizer, SmallestMailboxPool}
 import kamon.Kamon
 import skarn.push.GCMProtocol.Notification
 import skarn.push.PushRequestHandleActorProtocol.ExtraData
@@ -30,16 +32,45 @@ class PushIosActor(val service: ApnsService2) extends Actor with IosPushStreamPr
   implicit val executionContext = context.dispatcher
 
   implicit val pushService = service
+  implicit val order = ByteOrder.BIG_ENDIAN
+
   def receive: Receive = {
     case IosPushWrap(id, promise, IosPush(deviceTokens, title, body, badge, sound), start) => {
-      send(deviceTokens, title, body, badge, sound)
-      promise.success(Done(id, start))
+      val cachedLog = log
+      send(deviceTokens, title, body, badge, sound).onComplete {
+        case Success(_) => {
+          cachedLog.info("APNS request is completed for id: {}", id)
+          promise.success(Done(id, start))
+        }
+        case Failure(e) => {
+          cachedLog.error(e, "APNS connection is closed")
+          promise.success(Retry(id))
+        }
+      }
     }
   }
 }
 
 object PushIosActor {
   def props(service: ApnsService2) = Props(new PushIosActor(service))
+}
+
+class PushIosRouter(routeeNum: Int, service: ApnsService2) extends Actor {
+  val routerProps = SmallestMailboxPool(1).withResizer(DefaultResizer(1, routeeNum, 1, 0.5, 0.2, 0.1, 3))
+    .withSupervisorStrategy(SupervisorStrategy.defaultStrategy)
+    .props(PushIosActor.props(service))
+
+  val router = context.actorOf(routerProps)
+
+  def receive: Receive = {
+    case m => {
+      router forward m
+    }
+  }
+}
+
+object PushIosRouter {
+  def props(routeeNum: Int, service: ApnsService2) = Props(new PushIosRouter(routeeNum, service))
 }
 
 class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with AndroidPushStreamProvider {
@@ -60,7 +91,7 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
         case Failure(e) => {
           gcmTrace.finish()
           promise.success(Retry(id))
-          cachedLog.error(e, "GCM request failed")
+          cachedLog.error(e, "GCM request failed. Retrying...")
         }
       }
     }
@@ -96,7 +127,7 @@ object PushPlatformRouter {
 trait PlatformActorCreator { this: Actor =>
   val apnsService: ApnsService2
   val apiKey: String
-  lazy val ios = context.actorOf(PushIosActor.props(apnsService))
+  lazy val ios = context.actorOf(PushIosRouter.props(8, apnsService))
   lazy val android = context.actorOf(PushAndroidActor.props(apiKey))
 }
 

@@ -85,19 +85,36 @@ trait IosPushStreamProvider extends ServiceBaseContext {
 
   implicit lazy val materializer = ActorMaterializer()
 
-  lazy val tslBidiFlow = SslTls(service.sslContext, NegotiateNewSession, Role.client)
+  lazy val tlsBidiFlow = SslTls(service.sslContext, NegotiateNewSession, Role.client)
 
   lazy val apnsConnection = Tcp().outgoingConnection(requestUrl, 2195)
 
-  lazy val connection = parser.atop(tslBidiFlow).joinMat(apnsConnection) { (_, tcpConnFuture) =>
+  lazy val connection = intercept.atop(parser).atop(tlsBidiFlow).joinMat(apnsConnection) { (_, tcpConnFuture) =>
     tcpConnFuture map { tcpConn => OutgoingConnection(tcpConn.localAddress, tcpConn.remoteAddress) }
   }
 
   val parser = BidiFlow() { implicit b =>
-    val wrapTls = b.add(Flow[ByteString].map(b => {println(b.toString); SendBytes(b)}))
+    val wrapTls = b.add(Flow[ByteString].map(b => SendBytes(b)))
     val unwrapTls = b.add(Flow[SslTlsInbound].collect { case SessionBytes(_, bytes) => {println(bytes.toString); bytes} })
 
     BidiShape(wrapTls, unwrapTls)
+  }
+
+  val intercept = BidiFlow() { implicit b =>
+    import FlowGraph.Implicits._
+    val bcast = b.add(Broadcast[Option[ByteString]](2))
+    val transportFlow = b.add(Flow[Option[ByteString]].collect {
+      case Some(payload) => payload
+    })
+    val terminateFlow = b.add(Flow[Option[ByteString]].collect {
+      case None => ByteString.empty
+    })
+    val ignore = b.add(Sink.ignore)
+
+    val transport = bcast ~> transportFlow
+    val terminate = bcast ~> terminateFlow
+
+    BidiShape(bcast.in, transport.outlet, ignore, terminate.outlet)
   }
 
   def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None) = {
@@ -105,10 +122,10 @@ trait IosPushStreamProvider extends ServiceBaseContext {
     import APNSProtocol._
     import APNSJsonProtocol._
     val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
-    val data = deviceTokens.map(token => FrameData(Seq(DeviceToken(token), Payload(payload))).serialize)
-    Source(data).via(connection).runWith(Sink.fold(List.empty[ByteString]) { (acc, result) =>
-      result :: acc
-    })
+    val data = deviceTokens.zipWithIndex.collect {
+      case (token, i) => FrameData(Seq(DeviceToken(token), Payload(payload), Identifier(i))).serialize
+    }.reduce(_ ++ _)
+    Source(List(Some(data), None)).via(connection).runWith(Sink.head)
   }
 }
 

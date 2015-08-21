@@ -32,6 +32,14 @@ object Apns {
     val data = ByteString(payload)
   }
 
+  case class Identifier(unique: Int) extends FrameItem {
+    val id: Byte = 3
+    val data = {
+      implicit val order = ByteOrder.BIG_ENDIAN
+      ByteString.newBuilder.putInt(unique).result()
+    }
+  }
+
   case class FrameData(items: Seq[FrameItem]) {
     val command: Byte = 2
     def serialize = {
