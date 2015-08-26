@@ -60,10 +60,10 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends ActorSub
     case Done(id, start) => {
       start match {
         case Some(timestamp) => {
-          log.info("push id: {} is completed in {}ns", id, System.nanoTime() - timestamp)
+          log.info("[id:{}] push is completed in {}ns", id, System.nanoTime() - timestamp)
         }
         case None => {
-          log.info("id: {} is completed", id)
+          log.info("[id:{}] push is completed", id)
         }
       }
       processing = processing - id
@@ -72,15 +72,15 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends ActorSub
       processing.get(id) match {
         case Some(message) => {
           if (message.retry < maxRetry) {
-            log.info("retrying push id: {}", id)
+            log.info("[id:{}] start retrying...", id)
             buf = buf :+ message.copy(retry = (message.retry + 1).toShort)
             deliverBuf()
           } else {
-            log.warning("max retry exceeded for the message: {}", id)
+            log.warning("[id:{}] max retry count exceeded", id)
           }
           processing = processing - id
         }
-        case None => log.warning("missing message with ID: {} to retry", id)
+        case None => log.warning("[id:{}] missing message to retry", id)
       }
     }
     case GetBuffer(n) => {

@@ -37,13 +37,16 @@ class PushIosActor(val service: ApnsService) extends Actor with IosPushStreamPro
   def receive: Receive = {
     case IosPushWrap(id, promise, IosPush(deviceTokens, title, body, badge, sound), start) => {
       val cachedLog = log
+      val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
+      cachedLog.info("[id:{}] sending APNS request request {}", id, timestamp)
       send(deviceTokens, title, body, badge, sound).onComplete {
         case Success(_) => {
-          cachedLog.info("APNS request is completed for id: {}", id)
+          val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
+          cachedLog.info("[id:{}] APNS request is completed {}", id, timestamp)
           promise.success(Done(id, start))
         }
         case Failure(e) => {
-          cachedLog.error(e, "APNS connection is closed")
+          cachedLog.error(e, "[id:{}] APNS connection is closed", id)
           promise.success(Retry(id))
         }
       }
@@ -82,16 +85,19 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
     case AndroidPushWrap(id, promise, AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend), start) => {
       val cachedLog = log
       val gcmTrace = Kamon.tracer.newContext("gcm-trace")
+      val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
+      cachedLog.info("[id:{}] sending GCM request {}", id, timestamp)
       send(deviceToken, Some(Notification(title, body)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
         case Success(result) => {
           gcmTrace.finish()
+          val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
+          cachedLog.info("[id:{}] GCM request is completed; success: {}, failure: {} {}", id, result.success, result.failure, timestamp)
           promise.success(Done(id, start))
-          cachedLog.info("GCM result; success: {}, failure: {}", result.success, result.failure)
         }
         case Failure(e) => {
           gcmTrace.finish()
           promise.success(Retry(id))
-          cachedLog.error(e, "GCM request failed. Retrying...")
+          cachedLog.error(e, "[id:{}] GCM request failed. Retrying...", id)
         }
       }
     }
