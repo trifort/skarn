@@ -32,7 +32,7 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends ActorSub
 
   val ref = pushActorRef
 
-  val maxQueueSize = 1000
+  val maxQueueSize = 100000
   var buf = Vector.empty[QueueRequest]
   var processing = Map.empty[Int, QueueRequest]
 

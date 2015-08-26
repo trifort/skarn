@@ -38,7 +38,7 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
       notifications.foreach { pushEntity =>
         // split for multicast push
         val deviceTokens = pushEntity.platform match {
-          case Ios => pushEntity.deviceTokens.grouped(500)  // for APNS, payloads are duplicate so multicast limit becomes lower
+          case Ios => pushEntity.deviceTokens.grouped(1)  // for APNS, payloads are duplicate so multicast limit becomes lower
           case Android => pushEntity.deviceTokens.grouped(1000) // GCM multicast limit is 1000
           case Unknown => Iterator(Vector.empty[String])
         }
