@@ -175,7 +175,7 @@ trait AndroidPushStreamProvider extends ServiceBaseContext {
 
   def request(request: HttpRequest) = Source.single(request)
     .via(gcmConnectionFlow)
-    .runWith(Sink.head.withAttributes(ActorAttributes.dispatcher("gcm-dispatcher")))
+    .runWith(Sink.head)
 
   def send(deviceTokens: Vector[String], notification: Option[Notification], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, data: Option[ExtraData] = None): Future[GCMResponse] = {
     import GCMProtocol._
