@@ -97,8 +97,8 @@ trait IosPushStreamProvider extends ServiceBaseContext {
     val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
     val data = deviceTokens.zipWithIndex.collect {
       case (token, i) => FrameData(Seq(DeviceToken(token), Payload(payload), Identifier(i))).serialize
-    }.reduce(_ ++ _)
-    Source(List(Some(data), None)).via(connection).runWith(Sink.head)
+    }.map(Some(_))
+    Source(data :+  None).via(connection).runWith(Sink.head)
   }
 }
 
