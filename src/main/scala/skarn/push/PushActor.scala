@@ -4,7 +4,6 @@ package push
 import java.nio.ByteOrder
 import akka.actor._
 import akka.routing.{DefaultResizer, SmallestMailboxPool}
-import kamon.Kamon
 import skarn.push.GCMProtocol.Notification
 import skarn.push.PushRequestHandleActorProtocol.ExtraData
 import skarn.push.PushRequestQueue.{Command, QueueRequest}
@@ -84,18 +83,15 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
   def receive: Receive = {
     case AndroidPushWrap(id, promise, AndroidPush(deviceToken, title, body, collapseKey, delayWhileIdle, timeToLive, extend), start) => {
       val cachedLog = log
-      val gcmTrace = Kamon.tracer.newContext("gcm-trace")
       val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
       cachedLog.info("[id:{}] sending GCM request {}", id, timestamp)
       send(deviceToken, Some(Notification(title, body)), collapseKey, delayWhileIdle, timeToLive, extend).onComplete{
         case Success(result) => {
-          gcmTrace.finish()
           val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
           cachedLog.info("[id:{}] GCM request is completed; success: {}, failure: {} {}", id, result.success, result.failure, timestamp)
           promise.success(Done(id, start))
         }
         case Failure(e) => {
-          gcmTrace.finish()
           promise.success(Retry(id))
           cachedLog.error(e, "[id:{}] GCM request failed. Retrying...", id)
         }
