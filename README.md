@@ -63,9 +63,9 @@ In addition, you can package in any other format with following commands.
 + skarn/universal:packageBin - Generates a universal zip file
 + skarn/universal:packageZipTarball - Generates a universal tgz file
 + skarn/debian:packageBin - Generates a deb
-+ skarn/docker:publishLocal - Builds a Docker image using the local Doapi/cker server
++ skarn/docker:publishLocal - Builds a Docker image using the local Docker server
 + skarn/rpm:packageBin - Generates an rpm
-+ skarn/universal::packageOsxDmg - Generates a DMG file with the saapi/me contents as the unskarnrsal zip/tgz.
++ skarn/universal::packageOsxDmg - Generates a DMG file with the same contents as the universal zip/tgz
 + skarn/windows:packageBin - Generates an MSI
 
 For more information, see [sbt-native-packager document](http://www.scala-sbt.org/sbt-native-packager/archetypes/java_app/my-first-project.html).
@@ -110,6 +110,12 @@ example: service.json
 CONFIG_PATH=service.json  ./api/target/universal/stage/bin/api
 ```
 
+### Runtime Options
+Several options are configurable via environment variables.
+
++ CONFIG_PATH - configuration file path. See configuration section above.
++ JAVA_OPTS - JVM option. Default is "-Xms256M -Xmx256M -Xss1M -XX:+UseParallelGC"
++ MAX_QUEUE_SIZE - Maximum size of internal queue. Set its value as large as possible where your system memory allows. Ensure not to let it too large to prevent OutOfMemoryError. Default is 1000.
 
 ## API
 

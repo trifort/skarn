@@ -30,7 +30,7 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
 )) with WordSpecLike with MustMatchers with ImplicitSender { testSelf =>
   implicit lazy val materializer = ActorMaterializer()
 
-  class TestPushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends PushRequestQueue(maxRetry, pushActorRef) {
+  class TestPushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends PushRequestQueue(maxRetry, pushActorRef, 1000) {
     import PushRequestQueue._
     import akka.stream.actor.ActorSubscriberMessage._
     val testEntity = PushEntity(Vector("deviceToken"), Platform.Ios, Some("message"), None)

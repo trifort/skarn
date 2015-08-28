@@ -26,20 +26,19 @@ object PushRequestQueue {
   case class GetProcessing(n: Int = -1)
   case class CurrentProcessing(buffer: Map[Int, QueueRequest])
   case class QueueRequest(id: Int, entity: PushEntity, start: Option[Long] = None, retry: Short = 0)
-  def props(maxRetry: Short, pushActorRef: ActorRef): Props = {
-    Props(new PushRequestQueue(maxRetry, pushActorRef))
+  def props(maxRetry: Short, pushActorRef: ActorRef, maxQueueSize: Int = 1000): Props = {
+    Props(new PushRequestQueue(maxRetry, pushActorRef, maxQueueSize))
       .withDispatcher("push-request-queue-dispatcher")
   }
 }
 
-class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends ActorSubscriber with ActorPublisher[PushRequestQueue.QueueRequest] with ActorLogging with PushFlow {
+class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef, val maxQueueSize: Int) extends ActorSubscriber with ActorPublisher[PushRequestQueue.QueueRequest] with ActorLogging with PushFlow {
   import akka.stream.actor.ActorPublisherMessage._
   import akka.stream.actor.ActorSubscriberMessage._
   import PushRequestQueue._
 
   val ref = pushActorRef
 
-  val maxQueueSize = 1000
   var buf = Vector.empty[QueueRequest]
   var processing = Map.empty[Int, QueueRequest]
 

@@ -30,7 +30,7 @@ trait PushServices {
     }
     val props = PushPlatformRouter.props(apnsService, apiKey)
     val pushActorRef = context.actorOf(PushRouterSupervisor.props(pushService.name, props), pushService.name)
-    val pushRequestQueue = context.actorOf(PushRequestQueue.props(3, pushActorRef), s"queue-${pushService.name}")
+    val pushRequestQueue = context.actorOf(PushRequestQueue.props(3, pushActorRef, context.system.settings.config.getInt("application.max-queue-size")), s"queue-${pushService.name}")
     pushRequestQueue ! StartStream
     (pushService.name, pushRequestQueue)
   }.toMap
