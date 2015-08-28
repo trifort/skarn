@@ -39,7 +39,6 @@ libraryDependencies ++= {
     "org.scalatest"     %% "scalatest"       % "2.2.4"       % "test",
     "io.kamon" %% "kamon-core" % kamonVersion,
     "io.kamon" %% "kamon-akka" % kamonVersion,
-    "io.kamon" %% "kamon-spray" % kamonVersion,
     "io.kamon" %% "kamon-datadog" % kamonVersion,
     "io.kamon" %% "kamon-system-metrics" % kamonVersion,
     "io.kamon" % "sigar-loader" % "1.6.6",

@@ -11,8 +11,6 @@ import akka.stream.io._
 import akka.stream.scaladsl.Tcp.OutgoingConnection
 import akka.stream.{BidiShape, ActorAttributes, ActorMaterializer}
 import akka.util.ByteString
-import spray.client.pipelining._
-import spray.httpx.{SprayJsonSupport}
 import spray.json._
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import akka.stream.scaladsl._
@@ -136,28 +134,6 @@ trait ServiceBaseContext {
   val requestUrl: String
 }
 
-trait AndroidPushProvider extends ServiceBaseContext {
-  import PushRequestHandleActorProtocol.ExtraData
-  import GCMProtocol._
-  val requestUrl = "https://gcm-http.googleapis.com/gcm/send"
-
-  val apiKey: String
-
-  lazy val pipeline = {
-    import SprayJsonSupport._
-    import GCMJsonProtocol._
-    addHeader("Authorization", s"key=$apiKey") ~> sendReceive(system, executionContext) ~> unmarshal[GCMResponse]
-  }
-
-  def send(deviceTokens: Vector[String], notification: Option[Notification], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, data: Option[ExtraData] = None) = {
-    import GCMProtocol._
-    import SprayJsonSupport._
-    import GCMJsonProtocol._
-    pipeline {
-      Post(requestUrl, GCMEntity(deviceTokens, notification, collapse_key = collapseKey, delay_while_idle = delayWhileIdle, time_to_live = timeToLive, data = data))
-    }
-  }
-}
 
 trait AndroidPushStreamProvider extends ServiceBaseContext {
   import PushRequestHandleActorProtocol.ExtraData
