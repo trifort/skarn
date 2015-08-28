@@ -3,14 +3,16 @@ package push
 
 import java.util.concurrent.atomic.AtomicInteger
 import akka.actor._
+import akka.util.Timeout
 import skarn.filter.{FilterResultActor, FilterEntryBase, AuthTokenFilter}
 import skarn.definition.{PlatformJsonProtocol, Platform}
 import skarn.push.PushRequestHandleActorProtocol.{PushRequest}
-import skarn.push.PushRequestQueue.{QueueRequest, Append}
-import skarn.routing.{ErrorResponseProtocol}
+import skarn.routing.{ErrorFormat, ErrorResponseProtocol}
+import scala.util.{Success, Failure}
 import spray.http.StatusCodes
 import spray.json._
 import spray.routing.RequestContext
+import scala.concurrent.duration._
 
 /**
  * Created by yusuke on 2015/05/01.
@@ -30,26 +32,40 @@ object PushSupervisorJsonProtocol extends DefaultJsonProtocol {
 class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef], atomicInteger: AtomicInteger) extends Actor with ActorLogging {
   import PushSupervisorProtocol._
   import PushRequestHandleActorProtocol._
+  import PushRequestQueue._
+  import akka.pattern.ask
+  import context.dispatcher
+
+  implicit val timeout = Timeout(60 seconds)
 
   def receive: Receive =  {
     case PushPayload(PushRequest(notifications), service) => {
       import definition.Platform._
       val pushRouterSupervisorRef = pushRouterSupervisor(service.name)
-      notifications.foreach { pushEntity =>
+      val requests = notifications.flatMap { pushEntity =>
         // split for multicast push
         val deviceTokens = pushEntity.platform match {
           case Ios => pushEntity.deviceTokens.grouped(500)  // for APNS, payloads are duplicate so multicast limit becomes lower
           case Android => pushEntity.deviceTokens.grouped(1000) // GCM multicast limit is 1000
           case Unknown => Iterator(Vector.empty[String])
         }
-        deviceTokens.foreach { tokens =>
-          val id = atomicInteger.incrementAndGet()
-          pushRouterSupervisorRef forward Append(QueueRequest(id, pushEntity.copy(deviceTokens = tokens), Some(System.nanoTime())))
+        deviceTokens.map(tokens => QueueRequest(atomicInteger.incrementAndGet(), pushEntity.copy(deviceTokens = tokens), Some(System.nanoTime())))
+      }.toArray
+      pushRouterSupervisorRef ? Concat(requests) onComplete {
+        case Success(Accepted) => {
+          val total = requests.length
+          log.info("sending {} push notifications", total)
+          responder ! Processing(service.name, total)
+        }
+        case Success(Denied) => {
+          import ErrorFormat._
+          responder ! BUFFER_OVERFLOW
+        }
+        case Failure(e) => {
+          import ErrorFormat._
+          responder ! TIMEOUT
         }
       }
-      val total = notifications.length
-      log.info("sending {} push notifications", total)
-      responder ! Processing(service.name, total)
     }
   }
 }

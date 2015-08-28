@@ -36,4 +36,5 @@ object ErrorFormat {
   //PUSH
   val INVALID_PUSH_ACCESS_TOKEN = ErrorFormat(ErrorResponse(1001, "Push access token is invalid."), Unauthorized)
   val NO_ACCESS_TOKEN = ErrorFormat(ErrorResponse(1002, "Push access token cannot be found in X-AUTH-TOKEN header."), Unauthorized)
+  val BUFFER_OVERFLOW = ErrorFormat(ErrorResponse(1003, "Cannot accept push requests because buffer is full."), Unauthorized)
 }

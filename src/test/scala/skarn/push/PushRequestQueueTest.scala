@@ -15,7 +15,18 @@ import akka.stream.testkit.scaladsl.{TestSink, TestSource}
 /**
  * Created by yusuke on 15/08/12.
  */
-class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"}, ConfigFactory.empty()
+class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"}, ConfigFactory.parseString(
+  """
+    |push-request-queue-dispatcher {
+    |  mailbox-type = "skarn.push.PushRequestQueueBoundedPriorityMailbox"
+    |  mailbox-capacity = 11
+    |  fork-join-executor {
+    |    parallelism-min = 1
+    |    parallelism-factor = 1.0
+    |    parallelism-max = 1
+    |  }
+    |}
+  """.stripMargin)
 )) with WordSpecLike with MustMatchers with ImplicitSender { testSelf =>
   implicit lazy val materializer = ActorMaterializer()
 
@@ -53,6 +64,8 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
       val requests = 1 to 4 map(id => Append(QueueRequest(id, testEntity)))
 
       requests.foreach(ref ! _)
+
+      receiveN(4) must be(Seq.fill(4)(Accepted))
 
       ref ! GetBuffer()
       expectMsg(CurrentBuffer((1 to 4).map(QueueRequest(_, testEntity)).toVector))
@@ -148,9 +161,11 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
 
       val (ref, probe) = pushSource.toMat(TestSink.probe[QueueRequest])(Keep.both).run()
       ref ! Append(req1)
+      expectMsg(Accepted)
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector(req1)))
       ref ! Append(req2)
+      expectMsg(Accepted)
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector(req1, req2)))
 

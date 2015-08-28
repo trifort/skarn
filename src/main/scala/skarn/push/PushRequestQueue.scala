@@ -14,9 +14,13 @@ import skarn.push.PushRequestHandleActorProtocol.PushEntity
 object PushRequestQueue {
   sealed trait Command
   case class Append(message: QueueRequest)
+  case class Concat(messages: Array[QueueRequest])
   case object StartStream
   case class Done(id: Int, start: Option[Long] = None) extends Command
   case class Retry(id: Int) extends Command
+  sealed trait Reply
+  case object Accepted extends Reply
+  case object Denied extends Reply
   case class GetBuffer(n: Int = -1)
   case class CurrentBuffer(buffer: Vector[QueueRequest])
   case class GetProcessing(n: Int = -1)
@@ -52,13 +56,33 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends ActorSub
     case StartStream => {
       __source
     }
+    case Append(message) if (buf.size + processing.size == maxQueueSize ) => {
+      sender() ! Denied
+    }
     case Append(message) => {
+      sender() ! Accepted
       if (buf.isEmpty && totalDemand > 0) {
         onNext(message)
       } else {
         buf = buf :+ message
         deliverBuf()
       }
+      log.debug("[buffer size] {}/{}", buf.length, maxQueueSize)
+    }
+    case Concat(messages) if ((buf.size + processing.size + messages.length) >= maxQueueSize ) =>  {
+      sender() ! Denied
+    }
+    case Concat(messages) => {
+      sender() ! Accepted
+      messages.foreach { message =>
+        if (buf.isEmpty && totalDemand > 0) {
+          onNext(message)
+        } else {
+          buf = buf :+ message
+          deliverBuf()
+        }
+      }
+      log.debug("[buffer size] {}/{}", buf.length, maxQueueSize)
     }
     case Done(id, start) => {
       start match {
@@ -70,6 +94,7 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef) extends ActorSub
         }
       }
       processing = processing - id
+      log.debug("[buffer size] {}/{}", buf.length, maxQueueSize)
     }
     case Retry(id) => {
       processing.get(id) match {

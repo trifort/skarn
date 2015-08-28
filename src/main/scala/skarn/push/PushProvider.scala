@@ -9,7 +9,7 @@ import javax.net.ssl.TrustManagerFactory
 import akka.actor.ActorSystem
 import akka.stream.io._
 import akka.stream.scaladsl.Tcp.OutgoingConnection
-import akka.stream.{BidiShape, ActorAttributes, ActorMaterializer}
+import akka.stream.{BidiShape, ActorMaterializer}
 import akka.util.ByteString
 import spray.json._
 import scala.concurrent.{Promise, Future, ExecutionContext}
