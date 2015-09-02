@@ -26,6 +26,7 @@ libraryDependencies ++= {
   Seq(
     "com.typesafe.akka" %% "akka-actor"   % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j"   % akkaVersion,
+    "com.typesafe.akka" %% "akka-persistence-experimental" % akkaVersion,
     "com.typesafe.akka" %%  "akka-multi-node-testkit"      % akkaVersion   % "test",
     "com.typesafe.akka" %%  "akka-testkit"                 % akkaVersion   % "test",
     "com.typesafe.akka" %% "akka-stream-experimental" % akkaStreamVersion,
@@ -43,7 +44,8 @@ libraryDependencies ++= {
     "io.kamon" %% "kamon-system-metrics" % kamonVersion,
     "io.kamon" % "sigar-loader" % "1.6.6",
     "org.aspectj" % "aspectjweaver" % "1.8.5",
-    "ch.qos.logback"  %  "logback-classic"    % "1.1.3"
+    "ch.qos.logback"  %  "logback-classic"    % "1.1.3",
+    "commons-io" % "commons-io" % "1.3.2" % "test"
   )
 }
 
@@ -56,7 +58,8 @@ javaOptions ++= Seq(
   "-Djvm-debug 5005",
   "-Dkamon.statsd.hostname=172.17.8.101",
   s"-DCONFIG_PATH=${baseDirectory.value.getAbsolutePath}/service/service.conf",
-  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns"
+  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns",
+  "-Dakka.persistence.journal.leveldb.native=off"
 )
 
 fork in run := true
@@ -68,7 +71,8 @@ javaOptions in Revolver.reStart ++= Seq(
   "-Djvm-debug 5005",
   "-Dkamon.statsd.hostname=172.17.8.101",
   s"-DCONFIG_PATH=${baseDirectory.value.getAbsolutePath}/service/service.conf",
-  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns"
+  s"-DCERT_PATH=${baseDirectory.value.getAbsolutePath}/service/apns",
+  "-Dakka.persistence.journal.leveldb.native=off"
 )
 
 javaOptions in Revolver.reStart <++= AspectjKeys.weaverOptions in Aspectj
@@ -96,8 +100,10 @@ javaOptions in ITest ++= Seq(s"-DCONFIG_PATH=${baseDirectory.value.getAbsolutePa
 
 // for Kamon issue https://github.com/kamon-io/Kamon/issues/202
 
-fork in (ITest, test) := true
+fork in (ITest, test) := false
 
-fork in (ITest, testOnly) := true
+fork in (ITest, testOnly) := false
 
-fork in (ITest, testQuick) := true
+fork in (ITest, testQuick) := false
+
+parallelExecution in ITest := false
