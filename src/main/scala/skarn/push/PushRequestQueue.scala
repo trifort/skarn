@@ -61,6 +61,7 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef, val maxQueueSize
     case Append(message) => {
       sender() ! Accepted
       if (buf.buffer.isEmpty && totalDemand > 0) {
+        buf = buf.immediatelyProcess(message)
         onNext(message)
       } else {
         buf = buf.append(message)
@@ -75,6 +76,7 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef, val maxQueueSize
       sender() ! Accepted
       messages.foreach { message =>
         if (buf.buffer.isEmpty && totalDemand > 0) {
+          buf = buf.immediatelyProcess(message)
           onNext(message)
         } else {
           buf = buf.append(message)

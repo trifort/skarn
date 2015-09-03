@@ -22,6 +22,7 @@ case class Buffer(buffer: Vector[QueueRequest], processing: Map[Int, QueueReques
       case None => this
     }
   }
+  def immediatelyProcess(elem: QueueRequest) = copy(processing = processing + (elem.id -> elem))
   def total = buffer.size + processing.size
 }
 

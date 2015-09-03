@@ -34,6 +34,11 @@ class BufferTest extends WordSpecLike with MustMatchers {
       buffer.process(1)._2 must be(Vector(QueueRequest(1, entity)))
     }
 
+    "immediatelyProcess" in {
+      val buffer = Buffer.empty.append(QueueRequest(1, entity))
+      buffer.immediatelyProcess(QueueRequest(2, entity)) must be(Buffer(Vector(QueueRequest(1, entity)), Map(2 -> QueueRequest(2, entity))))
+    }
+
     "doneWith" in {
       val buffer = Buffer.empty.concat(Array(QueueRequest(1, entity), QueueRequest(2, entity))).process(1)._1
       buffer.doneWith(1) must be(Buffer(Vector(QueueRequest(2, entity)), Map.empty))
