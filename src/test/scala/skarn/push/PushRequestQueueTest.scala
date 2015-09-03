@@ -35,7 +35,7 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
     import akka.stream.actor.ActorSubscriberMessage._
     val testEntity = PushEntity(Vector("deviceToken"), Platform.Ios, Some("message"), None)
 
-    processing = (1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap
+    buf = Buffer.empty.copy(processing = (1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap)
 
     def testReceive: Receive = {
       case OnNext(m) => {
