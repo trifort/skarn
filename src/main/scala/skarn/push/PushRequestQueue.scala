@@ -18,7 +18,6 @@ object PushRequestQueue {
   case object StartStream
   case class Done(id: Int, start: Option[Long] = None) extends Command
   case class Retry(id: Int) extends Command
-  case class Process(num: Int)
   sealed trait Reply
   case object Accepted extends Reply
   case object Denied extends Reply
