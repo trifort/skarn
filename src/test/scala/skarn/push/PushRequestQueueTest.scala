@@ -10,6 +10,7 @@ import akka.stream.scaladsl.{Sink, Source, Keep}
 import skarn.push.PushRequestHandleActorProtocol.PushEntity
 import definition.Platform
 import akka.stream.testkit.scaladsl.{TestSink, TestSource}
+import scala.concurrent.duration._
 
 
 /**
@@ -147,6 +148,7 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
 
       probe.sendNext(Retry(1))
       expectMsg(Retry(1))
+      expectNoMsg(2 seconds) // wait until following Done message is processed
       ref ! GetProcessing()
       expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
