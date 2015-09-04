@@ -13,7 +13,7 @@ import scala.util.control.NonFatal
  */
 
 object PersistentBufferJournalProtocol {
-  case class RecoveryComplete(data: Map[Int, QueueRequest])
+  case class RecoveryComplete(data: Map[Long, QueueRequest])
 }
 
 class PersistentBufferJournal(persistenceId: String, target: ActorRef) extends PersistentJournalActor(persistenceId, target) {
@@ -21,7 +21,7 @@ class PersistentBufferJournal(persistenceId: String, target: ActorRef) extends P
   import PersistentPushRequestQueueProtocol._
   import PersistentBufferJournalProtocol._
 
-  var recoveringTemporaryData: Map[Int, QueueRequest] = Map.empty
+  var recoveringTemporaryData: Map[Long, QueueRequest] = Map.empty
 
   def updateState(p: Persistent) = {
     p match {
@@ -57,7 +57,7 @@ object PersistentBufferJournal {
 object PersistentPushRequestQueueProtocol {
   case class AppendEvt(message: QueueRequest) extends Persistent
   case class ConcatEvt(messages: Array[QueueRequest]) extends Persistent
-  case class DoneEvt(id: Int, start: Option[Long] = None) extends Persistent
+  case class DoneEvt(id: Long, start: Option[Long] = None) extends Persistent
   case object CurrentState
   case object Recovering
   case object Recovered

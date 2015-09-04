@@ -16,16 +16,16 @@ object PushRequestQueue {
   case class Append(message: QueueRequest)
   case class Concat(messages: Array[QueueRequest])
   case object StartStream
-  case class Done(id: Int, start: Option[Long] = None) extends Command
-  case class Retry(id: Int) extends Command
+  case class Done(id: Long, start: Option[Long] = None) extends Command
+  case class Retry(id: Long) extends Command
   sealed trait Reply
   case object Accepted extends Reply
   case object Denied extends Reply
   case class GetBuffer(n: Int = -1)
   case class CurrentBuffer(buffer: Vector[QueueRequest])
   case class GetProcessing(n: Int = -1)
-  case class CurrentProcessing(buffer: Map[Int, QueueRequest])
-  case class QueueRequest(id: Int, entity: PushEntity, start: Option[Long] = None, retry: Short = 0)
+  case class CurrentProcessing(buffer: Map[Long, QueueRequest])
+  case class QueueRequest(id: Long, entity: PushEntity, start: Option[Long] = None, retry: Short = 0)
   def props(maxRetry: Short, pushActorRef: ActorRef, maxQueueSize: Int = 1000): Props = {
     Props(new PushRequestQueue(maxRetry, pushActorRef, maxQueueSize))
       .withDispatcher("push-request-queue-dispatcher")

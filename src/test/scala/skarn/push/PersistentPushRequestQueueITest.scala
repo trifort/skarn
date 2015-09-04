@@ -62,7 +62,7 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
     import akka.stream.actor.ActorSubscriberMessage._
     val testEntity = PushEntity(Vector("deviceToken"), Platform.Ios, Some("message"), None)
 
-    buf = Buffer.empty.copy(processing = (1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap)
+    buf = Buffer.empty.copy(processing = (1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap)
 
     override def persisting: Receive = {
       val receive: Receive = {
@@ -79,7 +79,7 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
     def props(maxRetry: Short, pushActorRef: ActorRef, persistenceId: String) = Props(new TestPushRequestQueue(maxRetry, pushActorRef, persistenceId))
   }
 
-  "PushRequestQueue" must {
+  "PersistentPushRequestQueue" must {
     import PushRequestQueue._
     import PersistentPushRequestQueueProtocol._
 
@@ -107,22 +107,22 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
 
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(1))
       expectMsg(Done(1))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((2L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(2))
       expectMsg(Done(2))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((3 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((3L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(3))
       expectMsg(Done(3))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((4 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((4L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(4))
       expectMsg(Done(4))
@@ -141,19 +141,19 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
       awaitCond(Await.result(ref ? CurrentState, 3 seconds) == Recovered, 10 seconds)
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Retry(1))
       expectMsg(Retry(1))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((2L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer((1 to 1).map(QueueRequest(_, testEntity, retry= 1)).toVector))
 
       probe.sendNext(Retry(2))
       expectMsg(Retry(2))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((3 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((3L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer((1 to 2).map(QueueRequest(_, testEntity, retry= 1)).toVector))
 
@@ -161,7 +161,7 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
       probe.sendNext(Retry(3))
       expectMsg(Retry(3))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((4 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((4L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer((1 to 3).map(QueueRequest(_, testEntity, retry= 1)).toVector))
 
@@ -185,12 +185,13 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
       awaitCond(Await.result(ref ? CurrentState, 3 seconds) == Recovered, 10 seconds)
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Retry(1))
       expectMsg(Retry(1))
+      expectNoMsg(2 seconds) // wait until following Done message is processed
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((2L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector.empty))
 
@@ -222,14 +223,14 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector(req2)))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing(Map(1 -> req1)))
+      expectMsg(CurrentProcessing(Map(1L -> req1)))
 
       probe.request(1)
       probe.expectNext(req2)
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector.empty))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing(Map(1 -> req1, 2 -> req2)))
+      expectMsg(CurrentProcessing(Map(1L -> req1, 2L -> req2)))
     }
 
     "recover buffer at startup" in {
@@ -290,7 +291,7 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
       expectMsg(CurrentBuffer((2 to 4).map(QueueRequest(_, testEntity)).toVector))
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing(Map(1 -> QueueRequest(1, testEntity))))
+      expectMsg(CurrentProcessing(Map(1L -> QueueRequest(1, testEntity))))
 
       ref ! PoisonPill
       expectMsg("terminated")
@@ -327,17 +328,17 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
 
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(1))
       expectMsg(Done(1))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((2L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(2))
       expectMsg(Done(2))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((3 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((3L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       ref ! PoisonPill
       expectMsg("terminated")

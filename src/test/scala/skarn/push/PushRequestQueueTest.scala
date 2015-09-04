@@ -36,7 +36,7 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
     import akka.stream.actor.ActorSubscriberMessage._
     val testEntity = PushEntity(Vector("deviceToken"), Platform.Ios, Some("message"), None)
 
-    buf = Buffer.empty.copy(processing = (1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap)
+    buf = Buffer.empty.copy(processing = (1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap)
 
     def testReceive: Receive = {
       case OnNext(m) => {
@@ -73,22 +73,22 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
 
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(1))
       expectMsg(Done(1))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((2L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(2))
       expectMsg(Done(2))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((3 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((3L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(3))
       expectMsg(Done(3))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((4 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((4L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Done(4))
       expectMsg(Done(4))
@@ -104,19 +104,19 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
 
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Retry(1))
       expectMsg(Retry(1))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((2L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer((1 to 1).map(QueueRequest(_, testEntity, retry= 1)).toVector))
 
       probe.sendNext(Retry(2))
       expectMsg(Retry(2))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((3 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((3L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer((1 to 2).map(QueueRequest(_, testEntity, retry= 1)).toVector))
 
@@ -124,7 +124,7 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
       probe.sendNext(Retry(3))
       expectMsg(Retry(3))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((4 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((4L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer((1 to 3).map(QueueRequest(_, testEntity, retry= 1)).toVector))
 
@@ -144,13 +144,13 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
         .toMat(pushSink)(Keep.both).run()
 
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((1 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((1L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
       probe.sendNext(Retry(1))
       expectMsg(Retry(1))
       expectNoMsg(2 seconds) // wait until following Done message is processed
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing((2 to 4).map(id => (id, QueueRequest(id, testEntity))).toMap))
+      expectMsg(CurrentProcessing((2L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector.empty))
 
@@ -176,14 +176,14 @@ class PushRequestQueueTest extends TestKit(ActorSystem({"PushRequestQueueTest"},
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector(req2)))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing(Map(1 -> req1)))
+      expectMsg(CurrentProcessing(Map(1L -> req1)))
 
       probe.request(1)
       probe.expectNext(req2)
       ref ! GetBuffer()
       expectMsg(CurrentBuffer(Vector.empty))
       ref ! GetProcessing()
-      expectMsg(CurrentProcessing(Map(1 -> req1, 2 -> req2)))
+      expectMsg(CurrentProcessing(Map(1L -> req1, 2L -> req2)))
     }
   }
 }

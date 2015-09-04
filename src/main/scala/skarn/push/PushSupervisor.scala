@@ -1,7 +1,7 @@
 package skarn
 package push
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicLong, AtomicInteger}
 import akka.actor._
 import akka.util.Timeout
 import skarn.filter.{FilterResultActor, FilterEntryBase, AuthTokenFilter}
@@ -30,7 +30,7 @@ object PushSupervisorJsonProtocol extends DefaultJsonProtocol {
 }
 
 
-class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef], atomicInteger: AtomicInteger) extends Actor with ActorLogging {
+class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef], atomicInteger: AtomicLong) extends Actor with ActorLogging {
   import PushSupervisorProtocol._
   import PushRequestHandleActorProtocol._
   import PushRequestQueue._
@@ -72,7 +72,7 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
 }
 
 object PushSupervisor {
-  val atomicId = new AtomicInteger()
+  val atomicId = new AtomicLong(System.currentTimeMillis())
   def props(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef]) = Props(new PushSupervisor(responder, pushRouterSupervisor, atomicId))
 }
 
