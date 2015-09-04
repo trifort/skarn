@@ -105,7 +105,7 @@ class PushRequestQueue(maxRetry: Short, pushActorRef: ActorRef, val maxQueueSize
             deliverBuf()
           } else {
             log.warning("[id:{}] max retry count exceeded", id)
-            buf = buf.doneWith(id)
+            self ! Done(id)
           }
         }
         case None => log.warning("[id:{}] missing message to retry", id)
