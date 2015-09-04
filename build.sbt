@@ -107,3 +107,7 @@ fork in (ITest, testOnly) := false
 fork in (ITest, testQuick) := false
 
 parallelExecution in ITest := false
+
+commands += Command.command("test-all") { state =>
+  "clean" :: "test" :: "it:test" :: state
+}
