@@ -6,6 +6,7 @@ import akka.actor._
 import akka.util.Timeout
 import skarn.filter.{FilterResultActor, FilterEntryBase, AuthTokenFilter}
 import skarn.definition.{PlatformJsonProtocol, Platform}
+import skarn.push.PersistentPushRequestQueueProtocol.ConcatEvt
 import skarn.push.PushRequestHandleActorProtocol.{PushRequest}
 import skarn.routing.{ErrorFormat, ErrorResponseProtocol}
 import scala.util.{Success, Failure}
@@ -51,7 +52,7 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
         }
         deviceTokens.map(tokens => QueueRequest(atomicInteger.incrementAndGet(), pushEntity.copy(deviceTokens = tokens), Some(System.nanoTime())))
       }.toArray
-      pushRouterSupervisorRef ? Concat(requests) onComplete {
+      pushRouterSupervisorRef ? ConcatEvt(requests) onComplete {
         case Success(Accepted) => {
           val total = requests.length
           log.info("sending {} push notifications", total)
