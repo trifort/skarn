@@ -23,7 +23,7 @@ class PersistentPublisherITest extends TestKit(ActorSystem("PersistentPublisherI
   "PersistentPublisher" must {
     implicit lazy val materializer = ActorMaterializer()
     "must read value from journal when requested" in {
-      val persistentSource = Source.actorPublisher[Persistent](PersistentPublisher.props("PersistentPublisherITest"))
+      val persistentSource = Source.actorPublisher[Persistent](PersistentPublisher.props("PersistentPublisherITest", PersistentJournalTestActor.props))
       val (ref, probe) = persistentSource.toMat(TestSink.probe[Persistent])(Keep.both).run()
       Thread.sleep(1000)
       1 to 200 map (P(_)) map (Persist(_)) foreach (ref ! _)

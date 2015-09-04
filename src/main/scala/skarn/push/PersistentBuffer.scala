@@ -72,15 +72,19 @@ class PersistentBuffer(publisher: ActorRef, val persistenceId: String, val viewI
   }
 }
 
+trait UpdateState {
+  def updateState(p: Persistent): Unit
+}
 
-class PersistentJournalActor(val persistenceId: String, target: ActorRef) extends PersistentActor with ActorLogging {
-  import PersistentJournalActor._
-  private var count = 0
+abstract class PersistentJournalActor(val persistenceId: String, target: ActorRef) extends PersistentActor with UpdateState with ActorLogging {
+  import PersistentJournalProtocol._
+  protected var count = 0
 
   def receiveCommand = {
     case msg: Persistent => {
       persist(msg) { evt =>
         count += 1
+        updateState(evt)
         log.info("journal: {}", count)
       }
     }
@@ -92,25 +96,24 @@ class PersistentJournalActor(val persistenceId: String, target: ActorRef) extend
   }
 }
 
-object PersistentJournalActor {
+object PersistentJournalProtocol {
   case class RecoveryComplete(count: Int)
-  def props(persistenceId: String, target: ActorRef) = Props(new PersistentJournalActor(persistenceId, target))
 }
 
 object PersistentPublisher {
   case class Persist(payload: Persistent)
-  def props(persistenceId: String) = Props(new PersistentPublisher(persistenceId))
+  def props(persistenceId: String, persistentJournalCreator: (String, ActorRef) => Props) = Props(new PersistentPublisher(persistenceId, persistentJournalCreator))
 }
 
-class PersistentPublisher(persistenceId: String) extends ActorPublisher[Persistent] with ActorLogging {
+class PersistentPublisher(persistenceId: String, persistentJournalCreator: (String, ActorRef) => Props) extends ActorPublisher[Persistent] with ActorLogging {
   import akka.stream.actor.ActorPublisherMessage._
   import PersistentPublisher._
 
-  val journal = context.actorOf(PersistentJournalActor.props(persistenceId, self), "journal")
+  val journal = context.actorOf(persistentJournalCreator(persistenceId, self), "journal")
   val buffer = context.actorOf(PersistentBuffer.props(self, persistenceId, s"$persistenceId-view", 100), "buffer")
 
   def recovering: Receive = {
-    case PersistentJournalActor.RecoveryComplete(count) => {
+    case PersistentJournalProtocol.RecoveryComplete(count) => {
       log.info("recovery completed {}", count)
       context.become(waiting)
       buffer ! PersistentBuffer.Fill

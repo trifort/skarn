@@ -1,6 +1,6 @@
 package skarn.push
 
-import akka.actor.{PoisonPill, Props, ActorLogging, ActorSystem}
+import akka.actor._
 import akka.testkit.{TestProbe, TestKit}
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{MustMatchers, WordSpecLike}
@@ -12,6 +12,12 @@ import akka.persistence.{RecoveryCompleted, PersistentActor, Update}
  */
 
 case class P(num : Int) extends Persistent
+
+object PersistentJournalTestActor {
+  def props(persistenceId: String, target: ActorRef) = Props(new PersistentJournalActor(persistenceId, target) {
+    def updateState(p: Persistent) = {}
+  })
+}
 
 class PersistentBufferITest extends TestKit(ActorSystem("PersistentBufferTest", ConfigFactory.parseString(
   """
@@ -37,7 +43,7 @@ class PersistentBufferITest extends TestKit(ActorSystem("PersistentBufferTest", 
 
     def receiveRecover: Receive = {
       case _: Persistent => count += 1
-      case RecoveryCompleted => testActor ! PersistentJournalActor.RecoveryComplete(count)
+      case RecoveryCompleted => testActor ! PersistentJournalProtocol.RecoveryComplete(count)
     }
   }
 
@@ -50,7 +56,7 @@ class PersistentBufferITest extends TestKit(ActorSystem("PersistentBufferTest", 
       import PersistentBuffer._
       val persistentTestActor = system.actorOf(PersistentTestActor.props)
       val persistentBuffer = system.actorOf(PersistentBuffer.props(testActor, "PersistentBufferTest-1", "view-1", 10))
-      expectMsg(PersistentJournalActor.RecoveryComplete(0))
+      expectMsg(PersistentJournalProtocol.RecoveryComplete(0))
       1 to 100 map (P(_)) foreach (persistentTestActor ! _)
       expectMsgAllOf(1 to 100 map (P(_)): _*)
       persistentBuffer ! Fill
@@ -74,9 +80,9 @@ class PersistentBufferITest extends TestKit(ActorSystem("PersistentBufferTest", 
     "recover" in {
       import PersistentBuffer._
       val testProbe = TestProbe()
-      val persistentTestActor = system.actorOf(PersistentJournalActor.props("PersistentBufferTest-1", testProbe.ref))
+      val persistentTestActor = system.actorOf(PersistentJournalTestActor.props("PersistentBufferTest-1", testProbe.ref))
       val persistentBuffer = system.actorOf(PersistentBuffer.props(testProbe.ref, "PersistentBufferTest-1", "view-1", 10))
-      testProbe.expectMsg(PersistentJournalActor.RecoveryComplete(100))
+      testProbe.expectMsg(PersistentJournalProtocol.RecoveryComplete(100))
       persistentBuffer ! Fill
       persistentBuffer ! Request(10)
       testProbe.expectMsg(Response((1 to 10).map(v => P(v)).toVector))
