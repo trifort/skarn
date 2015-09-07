@@ -19,8 +19,8 @@ import definition.Platform
 object PushActorProtocol {
   case class IosPush(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None)
   case class AndroidPush(deviceTokens: Vector[String], title: Option[String], body: Option[String], collapseKey: Option[String] = None, delayWhileIdle: Option[Boolean] = None, timeToLive: Option[Int] = None, extend: Option[ExtraData] = None)
-  case class IosPushWrap(id: Int, promise: Promise[Command], iosPush: IosPush, start: Option[Long] = None)
-  case class AndroidPushWrap(id: Int, promise: Promise[Command], androidPush: AndroidPush, start: Option[Long] = None)
+  case class IosPushWrap(id: Long, promise: Promise[Command], iosPush: IosPush, start: Option[Long] = None)
+  case class AndroidPushWrap(id: Long, promise: Promise[Command], androidPush: AndroidPush, start: Option[Long] = None)
 }
 
 class PushIosActor(val service: ApnsService) extends Actor with IosPushStreamProvider with ActorLogging {

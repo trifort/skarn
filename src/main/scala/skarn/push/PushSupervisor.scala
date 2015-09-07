@@ -1,11 +1,12 @@
 package skarn
 package push
 
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicLong, AtomicInteger}
 import akka.actor._
 import akka.util.Timeout
 import skarn.filter.{FilterResultActor, FilterEntryBase, AuthTokenFilter}
 import skarn.definition.{PlatformJsonProtocol, Platform}
+import skarn.push.PersistentPushRequestQueueProtocol.ConcatEvt
 import skarn.push.PushRequestHandleActorProtocol.{PushRequest}
 import skarn.routing.{ErrorFormat, ErrorResponseProtocol}
 import scala.util.{Success, Failure}
@@ -29,7 +30,7 @@ object PushSupervisorJsonProtocol extends DefaultJsonProtocol {
 }
 
 
-class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef], atomicInteger: AtomicInteger) extends Actor with ActorLogging {
+class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef], atomicInteger: AtomicLong) extends Actor with ActorLogging {
   import PushSupervisorProtocol._
   import PushRequestHandleActorProtocol._
   import PushRequestQueue._
@@ -51,7 +52,7 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
         }
         deviceTokens.map(tokens => QueueRequest(atomicInteger.incrementAndGet(), pushEntity.copy(deviceTokens = tokens), Some(System.nanoTime())))
       }.toArray
-      pushRouterSupervisorRef ? Concat(requests) onComplete {
+      pushRouterSupervisorRef ? ConcatEvt(requests) onComplete {
         case Success(Accepted) => {
           val total = requests.length
           log.info("sending {} push notifications", total)
@@ -71,7 +72,7 @@ class PushSupervisor(responder: ActorRef, pushRouterSupervisor: Map[String, Acto
 }
 
 object PushSupervisor {
-  val atomicId = new AtomicInteger()
+  val atomicId = new AtomicLong(System.currentTimeMillis())
   def props(responder: ActorRef, pushRouterSupervisor: Map[String, ActorRef]) = Props(new PushSupervisor(responder, pushRouterSupervisor, atomicId))
 }
 
