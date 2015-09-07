@@ -24,7 +24,6 @@ abstract class PersistentJournalActor(val persistenceId: String, target: ActorRe
       persist(msg) { evt =>
         count += 1
         updateState(evt)
-        log.info("journal: {}", count)
       }
     }
   }
