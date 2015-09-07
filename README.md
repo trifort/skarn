@@ -117,6 +117,12 @@ Several options are configurable via environment variables.
 + JAVA_OPTS - JVM option. Default is "-Xms256M -Xmx256M -Xss1M -XX:+UseParallelGC"
 + MAX_QUEUE_SIZE - Maximum size of internal queue. Set its value as large as possible where your system memory allows. Ensure not to let it too large to prevent OutOfMemoryError. Default is 1000.
 
+
+## Crash Recovery
+Just restart the server. Re-sending unfinished messages will be done automatically.
+
+NOTE: Do not remove a `journal` directory. It is needed for recovery.
+
 ## API
 
 POST /v1/push
