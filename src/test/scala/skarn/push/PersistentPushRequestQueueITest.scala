@@ -340,6 +340,8 @@ class PersistentPushRequestQueueITest extends TestKit(ActorSystem({"PersistentPu
       ref ! GetProcessing()
       expectMsg(CurrentProcessing((3L to 4L).map(id => (id, QueueRequest(id, testEntity))).toMap))
 
+      expectNoMsg(2 seconds) // wait until following Done message is processed
+
       ref ! PoisonPill
       expectMsg("terminated")
 
