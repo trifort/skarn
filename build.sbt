@@ -19,7 +19,7 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= {
-  val akkaVersion       = "2.3.12"
+  val akkaVersion       = "2.3.13"
   val akkaStreamVersion = "1.0"
   val sprayVersion      = "1.3.3"
   val kamonVersion      = "0.4.0"
