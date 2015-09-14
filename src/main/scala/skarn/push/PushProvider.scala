@@ -88,6 +88,12 @@ trait IosPushStreamProvider extends ServiceBaseContext {
     BidiShape(bcast.in, transport.outlet, ignore, terminate.outlet)
   }
 
+  /* @TanUkkii007 FIXME: This implementation has following problems.
+   *  + APNS disconnects if token is malformed. Stream is cancelled when connection is closed.
+   *  + APNS does not respond when request succeeds. More low level Ack based implementation is needed.
+   *
+   * Todo: Extract APNS client as a different library or package.
+   */
   def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None) = {
     import Apns._
     import APNSProtocol._
@@ -162,6 +168,9 @@ trait AndroidPushStreamProvider extends ServiceBaseContext {
     val entity = GCMEntity(deviceTokens, notification, collapse_key = collapseKey, delay_while_idle = delayWhileIdle, time_to_live = timeToLive, data = data)
     Marshal(entity).to[MessageEntity].flatMap { hRequest =>
       request(HttpRequest(method= POST, uri= requestPath, headers= headers, entity= hRequest)).flatMap { response =>
+        /*
+         * Todo: Use content negotiation
+         */
         Unmarshal(response).to[GCMResponse].recoverWith {
           case e => {
             val p = Promise.apply()
