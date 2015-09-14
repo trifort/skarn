@@ -89,6 +89,9 @@ class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with 
         case Success(result) => {
           val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
           cachedLog.info("[id:{}] GCM request is completed; success: {}, failure: {} {}", id, result.success, result.failure, timestamp)
+          /*
+           * Fixme: If `result.failure` is not zero, resend the failed subset of all tokens.
+           */
           promise.success(Done(id, start))
         }
         case Failure(e) => {
