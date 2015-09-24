@@ -22,7 +22,7 @@ libraryDependencies ++= {
   val akkaVersion       = "2.3.13"
   val akkaStreamVersion = "1.0"
   val sprayVersion      = "1.3.3"
-  val kamonVersion      = "0.4.0"
+  val kamonVersion      = "0.5.1"
   Seq(
     "com.typesafe.akka" %% "akka-actor"   % akkaVersion,
     "com.typesafe.akka" %% "akka-slf4j"   % akkaVersion,
@@ -96,15 +96,16 @@ genProjectInfo := {
 
 resourceGenerators in Compile += (genProjectInfo in Compile).taskValue
 
-javaOptions in ITest ++= Seq(s"-DCONFIG_PATH=${baseDirectory.value.getAbsolutePath}/service/service.conf")
+javaOptions in ITest ++= Seq(
+  s"-DCONFIG_PATH=${baseDirectory.value.getAbsolutePath}/service/service.conf",
+  "-Dkamon.auto-start=true" // for Kamon issue https://github.com/kamon-io/Kamon/issues/202
+)
 
-// for Kamon issue https://github.com/kamon-io/Kamon/issues/202
+fork in (ITest, test) := true
 
-fork in (ITest, test) := false
+fork in (ITest, testOnly) := true
 
-fork in (ITest, testOnly) := false
-
-fork in (ITest, testQuick) := false
+fork in (ITest, testQuick) := true
 
 parallelExecution in ITest := false
 
