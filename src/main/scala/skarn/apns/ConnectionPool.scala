@@ -24,7 +24,7 @@ class ConnectionPoolImpl(val settings: TcpConnectionPoolSettings)(implicit facto
 
   val maxConnection = settings.maxConnection
 
-  protected[this] lazy val poolRouterActor = factory.actorOf(createTcpClientRouter(settings.remoteAddress, settings.timeout), s"pool-${settings.remoteAddress.toString.substring(1)}")
+  protected[this] lazy val poolRouterActor = factory.actorOf(createTcpClientRouter(settings.remoteAddress, settings.timeout))
 
   protected[apns] def push(command: Send)(implicit ac: ActorContext) = poolRouterActor.tell(command, ac.self)
 
