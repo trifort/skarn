@@ -11,6 +11,7 @@ import akka.stream.io._
 import akka.stream.scaladsl.Tcp.OutgoingConnection
 import akka.stream.{BidiShape, ActorMaterializer}
 import akka.util.ByteString
+import skarn.apns.ApnsPushStreamProvider
 import spray.json._
 import scala.concurrent.{Promise, Future, ExecutionContext}
 import akka.stream.scaladsl._
@@ -48,45 +49,16 @@ object APNSProtocol {
 }
 
 
-trait IosPushStreamProvider extends ServiceBaseContext {
+trait IosPushStreamProvider extends ApnsPushStreamProvider with ServiceBaseContext {
 
   val service: ApnsService
 
   val requestUrl = "gateway.push.apple.com"
 
+  val port = 2195
+
   implicit lazy val materializer = ActorMaterializer()
 
-  lazy val tlsBidiFlow = SslTls(service.sslContext, NegotiateNewSession, Role.client)
-
-  lazy val apnsConnection = Tcp().outgoingConnection(requestUrl, 2195)
-
-  lazy val connection = intercept.atop(parser).atop(tlsBidiFlow).joinMat(apnsConnection) { (_, tcpConnFuture) =>
-    tcpConnFuture map { tcpConn => OutgoingConnection(tcpConn.localAddress, tcpConn.remoteAddress) }
-  }
-
-  val parser = BidiFlow() { implicit b =>
-    val wrapTls = b.add(Flow[ByteString].map(b => SendBytes(b)))
-    val unwrapTls = b.add(Flow[SslTlsInbound].collect { case SessionBytes(_, bytes) => {println(bytes.toString); bytes} })
-
-    BidiShape(wrapTls, unwrapTls)
-  }
-
-  val intercept = BidiFlow() { implicit b =>
-    import FlowGraph.Implicits._
-    val bcast = b.add(Broadcast[Option[ByteString]](2))
-    val transportFlow = b.add(Flow[Option[ByteString]].collect {
-      case Some(payload) => payload
-    })
-    val terminateFlow = b.add(Flow[Option[ByteString]].collect {
-      case None => ByteString.empty
-    })
-    val ignore = b.add(Sink.ignore)
-
-    val transport = bcast ~> transportFlow
-    val terminate = bcast ~> terminateFlow
-
-    BidiShape(bcast.in, transport.outlet, ignore, terminate.outlet)
-  }
 
   /* @TanUkkii007 FIXME: This implementation has following problems.
    *  + APNS disconnects if token is malformed. Stream is cancelled when connection is closed.
@@ -94,15 +66,15 @@ trait IosPushStreamProvider extends ServiceBaseContext {
    *
    * Todo: Extract APNS client as a different library or package.
    */
-  def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None) = {
+  def send(deviceTokens: Vector[String], title: Option[String], body: Option[String], badge: Option[Int] = None, sound: Option[String] = None): Future[Seq[Unit]] = {
     import Apns._
     import APNSProtocol._
     import APNSJsonProtocol._
     val payload = APNSEntity(Notification(Alert(title, body), badge, sound)).toJson.compactPrint
     val data = deviceTokens.zipWithIndex.collect {
       case (token, i) => FrameData(Seq(DeviceToken(token), Payload(payload), Identifier(i))).serialize
-    }.map(Some(_))
-    Source(data :+  None).via(connection).runWith(Sink.head)
+    }
+    send(data)(materializer)
   }
 }
 

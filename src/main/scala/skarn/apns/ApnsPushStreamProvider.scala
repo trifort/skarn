@@ -18,10 +18,10 @@ trait ApnsPushStreamProvider extends TcpClientStream {
 
   val service: ApnsService
 
-  val ackResponseSink = Sink.fold[Seq[Response], Response](Seq.empty)(_ :+ _)
-  val serverResponseSink = Sink.foreach[ByteString](response => println(s"APNS respond with $response, which indicate some failure"))
+  private[this] val ackResponseSink = Sink.fold[Seq[Response], Response](Seq.empty)(_ :+ _)
+  private[this] val serverResponseSink = Sink.foreach[ByteString](response => println(s"APNS respond with $response, which indicate some failure"))
 
-  lazy val combinedSink = Sink(ackResponseSink) { implicit b => ack =>
+  private[this] lazy val combinedSink = Sink(ackResponseSink) { implicit b => ack =>
     import FlowGraph.Implicits._
     val p = b.add(pipeline)
     val response = b.add(serverResponseSink)
@@ -39,7 +39,7 @@ trait ApnsPushStreamProvider extends TcpClientStream {
    * IN[ByteString] ~> convert ~> request | response ~> OUT[ByteString]
    *                           ~> future ~> OUT[Future[Unit]]
    */
-  lazy val pipeline = FlowGraph.partial() { implicit b =>
+  private[this] lazy val pipeline = FlowGraph.partial() { implicit b =>
     import FlowGraph.Implicits._
     val bcast = b.add(Broadcast[Push](2))
     val convert = b.add(convertFlow)

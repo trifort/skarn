@@ -46,7 +46,7 @@ class TcpClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration) 
       context.become(connected(connection))
     }
     case send: Send => {
-      log.warning("connection is not established yet so retry.")
+      log.debug("connection is not established yet so retry.")
       send.sender ! ReSend(send)
     }
   }
@@ -63,12 +63,17 @@ class TcpClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration) 
       timeout.cancel()
       promise.success(())
     }
-    case Received(data) => //publisher ! Receive(data)
+    case Received(data) => {
+      //publisher ! Receive(data)
+    }
     case CommandFailed(Write(data, ack: Ack)) => {
       log.warning("TCP buffer is full. Retry sending.")
       ack.sender ! ReSend(Send(data, ack.promise, ack.sender))
     }
-    case _: ConnectionClosed => destroy()
+    case _: ConnectionClosed => {
+      log.warning("closing connection")
+      destroy()
+    }
   }
 
   def destroy() = {

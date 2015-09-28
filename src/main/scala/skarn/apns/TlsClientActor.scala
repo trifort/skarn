@@ -86,7 +86,10 @@ class TlsClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration, 
         log.warning("TCP buffer is full. Retry sending.")
         ack.sender ! ReSend(Send(data, ack.promise, ack.sender))
       }
-      case _: ConnectionClosed => destroy()
+      case _: ConnectionClosed => {
+        log.warning("closing connection")
+        destroy()
+      }
     }
     r
   }

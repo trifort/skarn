@@ -1,15 +1,18 @@
 package skarn
 package push
 
+import java.net.InetSocketAddress
 import java.nio.ByteOrder
 import akka.actor._
 import akka.routing.{DefaultResizer, SmallestMailboxPool}
+import skarn.apns.{TlsConnectionPoolSettings, ConnectionPool}
 import skarn.push.GCMProtocol.Notification
 import skarn.push.PushRequestHandleActorProtocol.ExtraData
 import skarn.push.PushRequestQueue.{Command, QueueRequest}
 import scala.concurrent.Promise
 import scala.util.{Failure, Success}
 import definition.Platform
+import scala.concurrent.duration._
 
 /**
  * Created by yusuke on 2015/04/30.
@@ -26,6 +29,7 @@ object PushActorProtocol {
 class PushIosActor(val service: ApnsService) extends Actor with IosPushStreamProvider with ActorLogging {
   import PushActorProtocol._
   import PushRequestQueue._
+  import ConnectionPool.Implicits._
 
   implicit val system = context.system
   implicit val executionContext = context.dispatcher
@@ -33,11 +37,14 @@ class PushIosActor(val service: ApnsService) extends Actor with IosPushStreamPro
   implicit val pushService = service
   implicit val order = ByteOrder.BIG_ENDIAN
 
+  val maxRequest = 10
+  val connectionPool = ConnectionPool.create(TlsConnectionPoolSettings(new InetSocketAddress(requestUrl, port), maxRequest, 4, 10 seconds, service.sslContext))
+
   def receive: Receive = {
     case IosPushWrap(id, promise, IosPush(deviceTokens, title, body, badge, sound), start) => {
       val cachedLog = log
       val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
-      cachedLog.info("[id:{}] sending APNS request request {}", id, timestamp)
+      cachedLog.info("[id:{}] sending APNS request {}", id, timestamp)
       send(deviceTokens, title, body, badge, sound).onComplete {
         case Success(_) => {
           val timestamp = start.map(s => s", passed ${System.nanoTime() - s}ns").getOrElse("")
@@ -45,8 +52,10 @@ class PushIosActor(val service: ApnsService) extends Actor with IosPushStreamPro
           promise.success(Done(id, start))
         }
         case Failure(e) => {
-          cachedLog.error(e, "[id:{}] APNS connection is closed", id)
-          promise.success(Retry(id))
+          cachedLog.error(e, "[id:{}] APNS connection failed", id)
+          // ToDo: retry only failed tokens
+          //promise.success(Retry(id))
+          promise.success(Done(id))
         }
       }
     }
@@ -55,24 +64,6 @@ class PushIosActor(val service: ApnsService) extends Actor with IosPushStreamPro
 
 object PushIosActor {
   def props(service: ApnsService) = Props(new PushIosActor(service))
-}
-
-class PushIosRouter(routeeNum: Int, service: ApnsService) extends Actor {
-  val routerProps = SmallestMailboxPool(1).withResizer(DefaultResizer(1, routeeNum, 1, 0.5, 0.2, 0.1, 3))
-    .withSupervisorStrategy(SupervisorStrategy.defaultStrategy)
-    .props(PushIosActor.props(service))
-
-  val router = context.actorOf(routerProps)
-
-  def receive: Receive = {
-    case m => {
-      router forward m
-    }
-  }
-}
-
-object PushIosRouter {
-  def props(routeeNum: Int, service: ApnsService) = Props(new PushIosRouter(routeeNum, service))
 }
 
 class PushAndroidActor(val apiKey: String) extends Actor with ActorLogging with AndroidPushStreamProvider {
@@ -132,7 +123,7 @@ object PushPlatformRouter {
 trait PlatformActorCreator { this: Actor =>
   val apnsService: ApnsService
   val apiKey: String
-  lazy val ios = context.actorOf(PushIosRouter.props(8, apnsService))
+  lazy val ios = context.actorOf(PushIosActor.props(apnsService))
   lazy val android = context.actorOf(PushAndroidActor.props(apiKey))
 }
 
