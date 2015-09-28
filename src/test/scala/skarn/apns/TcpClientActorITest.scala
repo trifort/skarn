@@ -33,27 +33,28 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
   "TcpClientActor" must {
     import Tcp._
     import TcpClientActorProtocol._
+    val trashbox = TestProbe()
     "send a request" in {
+
       new TcpServerTestSetupBase(system, testActor) {
         import system.dispatcher
 
         val connection = expectMsgClass(classOf[Bound])
-        val publisher = TestProbe()
         val client = system.actorOf(TcpClientActor.props(connection.localAddress, 5 seconds))
 
         expectMsgClass(classOf[Connected])
         expectMsgClass(classOf[Register])
 
         val p1 = Promise[Unit]
-        client ! Send(ByteString("abcde"), p1)
+        client ! Send(ByteString("abcde"), p1, trashbox.ref)
         expectMsg(Received(ByteString("abcde")))
 
         val p2 = Promise[Unit]
-        client ! Send(ByteString("abcde"), p2)
+        client ! Send(ByteString("abcde"), p2, trashbox.ref)
         expectMsg(Received(ByteString("abcde")))
 
         val p3 = Promise[Unit]
-        client ! Send(ByteString("abcde"), p3)
+        client ! Send(ByteString("abcde"), p3, trashbox.ref)
         expectMsg(Received(ByteString("abcde")))
 
         Await.result(Future.sequence(List(p1, p2, p3).map(_.future)), 5 seconds) must be(List.fill(3)(()))

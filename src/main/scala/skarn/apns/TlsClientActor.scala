@@ -17,7 +17,7 @@ import scala.concurrent.duration.FiniteDuration
  */
 
 object TlsClientActorProtocol {
-  case class SendEncrypted(data: ByteString, promise: Promise[Unit])
+  case class SendEncrypted(data: ByteString, promise: Promise[Unit], sender: ActorRef)
   case class ReceiveEncrypted(data: ByteString)
 }
 
@@ -48,13 +48,13 @@ class TlsClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration, 
     val snk2 = b.add(sink2)
     val bcast = b.add(Broadcast[Send](2))
     val extractD = b.add(Flow[Send].map(_.data))
-    val extractP = b.add(Flow[Send].map(_.promise))
-    val zip = b.add(Zip[Promise[Unit], ByteString])
-    val merge = b.add(Flow[(Promise[Unit], ByteString)].map(pair => SendEncrypted(pair._2, pair._1)))
+    val extractPR = b.add(Flow[Send].map(s => (s.promise, s.sender)))
+    val zip = b.add(Zip[(Promise[Unit], ActorRef), ByteString])
+    val merge = b.add(Flow[((Promise[Unit], ActorRef), ByteString)].map{case ((p, ref), data) => SendEncrypted(data, p, ref)})
     val convert = b.add(Flow[ByteString].map(ReceiveEncrypted(_)))
     val payload = b.add(Flow[Received].map(_.data))
     src1 ~> bcast ~> extractD ~> tls.in1
-            bcast ~> extractP ~> zip.in0
+            bcast ~> extractPR ~> zip.in0
                      tls.out1 ~> zip.in1
                                  zip.out ~> merge.inlet
                                             merge.outlet ~> snk1
@@ -68,11 +68,11 @@ class TlsClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration, 
     val r: Receive = {
       case msg: Send => sendRef forward msg
       case msg: Received => receiveRef forward msg
-      case SendEncrypted(data, promise) => {
+      case SendEncrypted(data, promise, ref) => {
         val cancelTimeout = context.system.scheduler.scheduleOnce(timeout) {
           promise.tryFailure(new Exception("timeout"))
         }
-        connection ! Write(data, Ack(promise, cancelTimeout, sender()))
+        connection ! Write(data, Ack(promise, cancelTimeout, ref))
       }
       case Ack(promise, timeout, ref) => {
         ref ! Finished
@@ -84,7 +84,7 @@ class TlsClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration, 
       }
       case CommandFailed(Write(data, ack: Ack)) => {
         log.warning("TCP buffer is full. Retry sending.")
-        ack.sender ! ReSend(Send(data, ack.promise))
+        ack.sender ! ReSend(Send(data, ack.promise, ack.sender))
       }
       case _: ConnectionClosed => destroy()
     }

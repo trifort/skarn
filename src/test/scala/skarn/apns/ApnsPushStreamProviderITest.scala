@@ -12,6 +12,7 @@ import skarn.{StopSystemAfterAllWithAwaitTermination, TcpEncryptedServerTestSetu
 import collection.immutable.Seq
 import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.concurrent.Future
 
 /**
  * Created by yusuke on 15/09/17.
@@ -47,13 +48,19 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
   "ApnsPushStreamProvider" must {
     "send multiple data with connection pool" in {
       import materializer.executionContext
-      val tlsStreamActor = system.actorOf(TlsStreamActor.props(serverBinding.localAddress, 10, 4, 2 seconds, apnsService.sslContext))
+      import ConnectionPool.Implicits._
       object ApnsPushStreamProvider extends ApnsPushStreamProvider {
-        val target = tlsStreamActor
+        val connectionPool = ConnectionPool.create(TlsConnectionPoolSettings(serverBinding.localAddress, 10, 4, 5 seconds, apnsService.sslContext))
+        connectionPool.startConnection()
+        val maxRequest = 10
         val service = apnsService
       }
 
-      Await.result(ApnsPushStreamProvider.send(Seq.fill(20)(ByteString("abcde"))), 5 seconds).length must be(20)
+      val r1 = ApnsPushStreamProvider.send(Seq.fill(20)(ByteString("abcde")))
+      val r2 = ApnsPushStreamProvider.send(Seq.fill(20)(ByteString("fghij")))
+      val r3 = ApnsPushStreamProvider.send(Seq.fill(20)(ByteString("klmno")))
+
+      Await.result(Future.sequence(Seq(r1, r2, r3)).map(_.flatten), 20 seconds).length must be(60)
     }
   }
 }

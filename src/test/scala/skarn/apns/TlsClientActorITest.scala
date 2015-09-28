@@ -1,6 +1,6 @@
 package skarn.apns
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem}
 import akka.stream.ActorMaterializer
 import akka.stream.scaladsl.Flow
 import akka.testkit.{TestProbe, TestKit}
@@ -46,7 +46,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
         // To ensure to flush TCP buffer. Ugly test.
         Range(0, 10) foreach { _ =>
           val p1 = Promise[Unit]
-          client ! Send(ByteString("abcde"), p1)
+          client ! Send(ByteString("abcde"), p1, publisher.ref)
         }
 
         outSub.request(1)

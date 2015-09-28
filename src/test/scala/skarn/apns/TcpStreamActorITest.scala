@@ -10,6 +10,7 @@ import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import kamon.Kamon
 import org.scalatest.{MustMatchers, WordSpecLike}
+import skarn.apns.TcpStreamActorProtocol.Push
 import skarn.{TcpServerTestSetupBase, StopSystemAfterAllWithAwaitTermination}
 import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
@@ -22,7 +23,6 @@ class TcpStreamActorITest  extends TestKit({Kamon.start(); ActorSystem("TcpStrea
 with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination { testSelf =>
   "TcpStreamActor" must {
     import Tcp._
-    import TcpClientActorProtocol._
     "send a request with Stream" in {
       val serverProbe = TestProbe()
       new TcpServerTestSetupBase(system, serverProbe.ref) {
@@ -37,14 +37,14 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connectionPool, 10))
 
-        val probe = TestSource.probe[Send].toMat(clientSink)(Keep.left).run()
+        val probe = TestSource.probe[Push].toMat(clientSink)(Keep.left).run()
 
         serverProbe.expectMsgClass(classOf[Connected])
         serverProbe.expectMsgClass(classOf[Register])
 
         1 to 100 foreach { _ =>
           val p = Promise[Unit]
-          probe.sendNext(Send(ByteString("abcde"), p))
+          probe.sendNext(Push(ByteString("abcde"), p))
           serverProbe.expectMsg(Received(ByteString("abcde")))
         }
 
@@ -68,7 +68,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connectionPool, 2))
 
-        val probe = TestSource.probe[Send].toMat(clientSink)(Keep.left).run()
+        val probe = TestSource.probe[Push].toMat(clientSink)(Keep.left).run()
 
         val (connectMsg, registerMsg) = serverProbe.receiveN(nOfConnection * 2).partition {
           case _: Connected => true
@@ -81,7 +81,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val responses1 = 1 to 20 map { _ =>
           val p = Promise[Unit]
-          probe.sendNext(Send(ByteString("abcde"), p))
+          probe.sendNext(Push(ByteString("abcde"), p))
           p.future
         }
 
@@ -89,7 +89,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val responses2 = 21 to 100 map { _ =>
           val p = Promise[Unit]
-          probe.sendNext(Send(ByteString("abcde"), p))
+          probe.sendNext(Push(ByteString("abcde"), p))
           Thread.sleep(10)
           p.future
         }
@@ -116,7 +116,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connectionPool, 2))
 
-        val probe = TestSource.probe[Send].toMat(clientSink)(Keep.left).run()
+        val probe = TestSource.probe[Push].toMat(clientSink)(Keep.left).run()
 
         val (connectMsg, registerMsg) = serverProbe.receiveN(nOfConnection * 2).partition {
           case _: Connected => true
@@ -129,7 +129,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val responses1 = 1 to 20 map { _ =>
           val p = Promise[Unit]
-          probe.sendNext(Send(ByteString("abcde"), p))
+          probe.sendNext(Push(ByteString("abcde"), p))
           Thread.sleep(5)
           p.future
         }
@@ -138,7 +138,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val responses2 = 21 to 100 map { _ =>
           val p = Promise[Unit]
-          probe.sendNext(Send(ByteString("abcde"), p))
+          probe.sendNext(Push(ByteString("abcde"), p))
           Thread.sleep(10)
           p.future
         }

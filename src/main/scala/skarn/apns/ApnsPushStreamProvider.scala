@@ -3,7 +3,6 @@ package skarn.apns
 import akka.stream.{FanOutShape2, Materializer}
 import akka.stream.scaladsl._
 import akka.util.ByteString
-import skarn.apns.TcpClientActorProtocol.Send
 import skarn.push.ApnsService
 import collection.immutable.Seq
 import scala.concurrent.{Future}
@@ -14,6 +13,8 @@ import scala.concurrent.{Future}
 
 trait ApnsPushStreamProvider extends TcpClientStream {
   type Response = Future[Unit]
+
+  import TcpStreamActorProtocol._
 
   val service: ApnsService
 
@@ -40,7 +41,7 @@ trait ApnsPushStreamProvider extends TcpClientStream {
    */
   lazy val pipeline = FlowGraph.partial() { implicit b =>
     import FlowGraph.Implicits._
-    val bcast = b.add(Broadcast[Send](2))
+    val bcast = b.add(Broadcast[Push](2))
     val convert = b.add(convertFlow)
     val request = b.add(requestSink)
     val future = b.add(requestFuture)
