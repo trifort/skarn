@@ -3,6 +3,8 @@ package skarn.apns
 import java.net.InetSocketAddress
 import java.util.concurrent.ConcurrentHashMap
 
+import akka.stream.actor.ActorSubscriber.OnSubscribe
+
 import scala.collection.JavaConversions._
 import akka.actor._
 import akka.io.{IO, Tcp}
@@ -24,13 +26,13 @@ object TcpClientActorProtocol {
   case object Finished
 }
 
-private case class Ack(promise: Promise[Unit], timeout: Cancellable) extends Tcp.Event
+private case class Ack(promise: Promise[Unit], timeout: Cancellable, sender: ActorRef) extends Tcp.Event
 
 object TcpClientActor {
-  def props(remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) = Props(new TcpClientActor(remoteAddress, publisher, timeout))
+  def props(remoteAddress: InetSocketAddress, timeout: FiniteDuration) = Props(new TcpClientActor(remoteAddress, timeout))
 }
 
-class TcpClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) extends Actor with ActorLogging {
+class TcpClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration) extends Actor with ActorLogging {
   import TcpClientActorProtocol._
   import Tcp._
   import context.system
@@ -49,7 +51,7 @@ class TcpClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, time
     }
     case send: Send => {
       log.warning("connection is not established yet so retry.")
-      publisher ! ReSend(send)
+      sender() ! ReSend(send)
     }
   }
 
@@ -58,17 +60,17 @@ class TcpClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, time
       val cancelTimeout = system.scheduler.scheduleOnce(timeout) {
         promise.tryFailure(new Exception("timeout"))
       }
-      connection ! Write(data, Ack(promise, cancelTimeout))
+      connection ! Write(data, Ack(promise, cancelTimeout, sender()))
     }
-    case Ack(promise, timeout) => {
-      publisher ! Finished
+    case Ack(promise, timeout, ref) => {
+      ref ! Finished
       timeout.cancel()
       promise.success(())
     }
-    case Received(data) => publisher ! Receive(data)
+    case Received(data) => //publisher ! Receive(data)
     case CommandFailed(Write(data, ack: Ack)) => {
       log.warning("TCP buffer is full. Retry sending.")
-      publisher ! ReSend(Send(data, ack.promise))
+      ack.sender ! ReSend(Send(data, ack.promise))
     }
     case _: ConnectionClosed => destroy()
   }
@@ -85,21 +87,21 @@ class TcpClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, time
 }
 
 object TcpClientRouteeActor {
-  def props(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) = Props(new TcpClientRouteeActor(id: Int, pool, remoteAddress, publisher, timeout))
+  def props(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, timeout: FiniteDuration) = Props(new TcpClientRouteeActor(id: Int, pool, remoteAddress, timeout))
 }
 
-class TcpClientRouteeActor(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) extends TcpClientActor(remoteAddress, publisher, timeout) {
+class TcpClientRouteeActor(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, timeout: FiniteDuration) extends TcpClientActor(remoteAddress, timeout) {
   override def destroy() = {
     pool.remove(id)
     super.destroy()
   }
 }
 
-object TcpConnectionPool {
-  def props(nOfRoutee: Int, remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) = Props(new TcpConnectionPool(nOfRoutee, remoteAddress, publisher, timeout))
+object TcpConnectionPoolActor {
+  def props(nOfRoutee: Int, remoteAddress: InetSocketAddress, timeout: FiniteDuration) = Props(new TcpConnectionPoolActor(nOfRoutee, remoteAddress, timeout))
 }
 
-class TcpConnectionPool(nOfRoutee: Int, remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) extends Actor {
+class TcpConnectionPoolActor(nOfRoutee: Int, remoteAddress: InetSocketAddress, timeout: FiniteDuration) extends Actor {
 
   val pool = new ConcurrentHashMap[Int, ActorRef]()
 
@@ -117,7 +119,7 @@ class TcpConnectionPool(nOfRoutee: Int, remoteAddress: InetSocketAddress, publis
     }
   }
 
-  def createRoutee(id: Int) = context.actorOf(TcpClientRouteeActor.props(id, pool, remoteAddress, publisher, timeout))
+  def createRoutee(id: Int) = context.actorOf(TcpClientRouteeActor.props(id, pool, remoteAddress, timeout))
 
 
   override def preStart() = {
@@ -131,8 +133,8 @@ class TcpConnectionPool(nOfRoutee: Int, remoteAddress: InetSocketAddress, publis
 
 trait ConnectionPoolRouter {
   val maxConnection: Int
-  def createTcpClientRouter(remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) =
-    TcpConnectionPool.props(maxConnection, remoteAddress, publisher, timeout)
+  protected[this] def createTcpClientRouter(remoteAddress: InetSocketAddress, timeout: FiniteDuration) =
+    TcpConnectionPoolActor.props(maxConnection, remoteAddress, timeout)
 }
 
 object DeadTcpWriteWatcher {
@@ -144,7 +146,7 @@ class DeadTcpWriteWatcher(reportTo: ActorRef) extends Actor {
   import TcpClientActorProtocol._
   context.system.eventStream.subscribe(self, classOf[DeadLetter])
   def receive: Receive = {
-    case DeadLetter(Write(data, Ack(promise, _)), _, _) if (!promise.isCompleted) => {
+    case DeadLetter(Write(data, Ack(promise, _, _)), _, _) if (!promise.isCompleted) => {
       reportTo ! ReSend(Send(data, promise))
     }
   }
@@ -155,11 +157,11 @@ class DeadTcpWriteWatcher(reportTo: ActorRef) extends Actor {
 }
 
 object TcpStreamActor {
-  def props(remoteAddress: InetSocketAddress, maxRequest: Int, maxConnection: Int, timeout: FiniteDuration) = Props(new TcpStreamActor(remoteAddress, maxRequest, maxConnection, timeout))
+  def props(pool: ConnectionPool, maxRequest: Int) = Props(new TcpStreamActor(pool, maxRequest))
 }
 
-class TcpStreamActor(remoteAddress: InetSocketAddress, maxRequest: Int, val maxConnection: Int, timeout: FiniteDuration) extends ActorPublisher[ByteString]
-with ActorSubscriber with ConnectionPoolRouter {
+class TcpStreamActor(pool: ConnectionPool, maxRequest: Int) extends ActorPublisher[ByteString]
+with ActorSubscriber {
   import TcpClientActorProtocol._
   import ActorSubscriberMessage._
 
@@ -168,20 +170,23 @@ with ActorSubscriber with ConnectionPoolRouter {
   override def requestStrategy = new MaxInFlightRequestStrategy(maxRequest) {
     override def inFlightInternally = nOfHandlingRequest
   }
-
-  val tcpClient = context.actorOf(createTcpClientRouter(remoteAddress, self, timeout), "tcp-client-router")
+  
   context.actorOf(DeadTcpWriteWatcher.props(self), "deadletter-watcher")
 
   def receive: Receive = {
     case OnNext(send: Send) => {
-      tcpClient ! send
+      pool.push(send)
       nOfHandlingRequest += 1
     }
-    case OnComplete =>
-    case ReSend(command) => {
-      tcpClient ! command
+    case OnComplete => {
+      context.stop(self)
     }
-    case Finished => nOfHandlingRequest -= 1
+    case ReSend(command) => {
+      pool.push(command)
+    }
+    case Finished => {
+      nOfHandlingRequest -= 1
+    }
     case Receive(data) if totalDemand > 0 => {
       onNext(data)
     }

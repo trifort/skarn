@@ -15,8 +15,8 @@ import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration._
 
 /**
- * Created by yusuke on 15/09/15.
- */
+* Created by yusuke on 15/09/15.
+*/
 
 class TcpStreamActorITest  extends TestKit({Kamon.start(); ActorSystem("TcpStreamActorITest", ConfigFactory.empty())})
 with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination { testSelf =>
@@ -26,11 +26,16 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
     "send a request with Stream" in {
       val serverProbe = TestProbe()
       new TcpServerTestSetupBase(system, serverProbe.ref) {
+        import ConnectionPool.Implicits._
 
         implicit val m = ActorMaterializer()
 
         val connection = serverProbe.expectMsgClass(classOf[Bound])
-        val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connection.localAddress, 10, 1, 5 seconds))
+
+        val connectionPool = ConnectionPool.create(TcpConnectionPoolSettings(connection.localAddress, 10, 1, 5 seconds))
+        connectionPool.startConnection()
+
+        val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connectionPool, 10))
 
         val probe = TestSource.probe[Send].toMat(clientSink)(Keep.left).run()
 
@@ -51,12 +56,17 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
       val serverProbe = TestProbe()
       new TcpServerTestSetupBase(system, serverProbe.ref) {
         import system.dispatcher
+        import ConnectionPool.Implicits._
 
         val nOfConnection = 1
         implicit val m = ActorMaterializer()
 
         val connection = serverProbe.expectMsgClass(classOf[Bound])
-        val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connection.localAddress, 2, nOfConnection, 5 seconds))
+
+        val connectionPool = ConnectionPool.create(TcpConnectionPoolSettings(connection.localAddress, 2, nOfConnection, 5 seconds))
+        connectionPool.startConnection()
+
+        val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connectionPool, 2))
 
         val probe = TestSource.probe[Send].toMat(clientSink)(Keep.left).run()
 
@@ -94,12 +104,17 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
       val serverProbe = TestProbe()
       new TcpServerTestSetupBase(system, serverProbe.ref) {
         import system.dispatcher
+        import ConnectionPool.Implicits._
 
         val nOfConnection = 1
         implicit val m = ActorMaterializer()
 
         val connection = serverProbe.expectMsgClass(classOf[Bound])
-        val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connection.localAddress, 2, nOfConnection, 5 seconds))
+
+        val connectionPool = ConnectionPool.create(TcpConnectionPoolSettings(connection.localAddress, 2, nOfConnection, 5 seconds))
+        connectionPool.startConnection()
+
+        val clientSink = Sink.actorSubscriber(TcpStreamActor.props(connectionPool, 2))
 
         val probe = TestSource.probe[Send].toMat(clientSink)(Keep.left).run()
 

@@ -12,8 +12,8 @@ import scala.concurrent.{Await, Promise, Future}
 import scala.concurrent.duration._
 
 /**
- * Created by yusuke on 15/09/14.
- */
+* Created by yusuke on 15/09/14.
+*/
 
 
 object WatchActor {
@@ -39,7 +39,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val connection = expectMsgClass(classOf[Bound])
         val publisher = TestProbe()
-        val client = system.actorOf(TcpClientActor.props(connection.localAddress, publisher.ref, 5 seconds))
+        val client = system.actorOf(TcpClientActor.props(connection.localAddress, 5 seconds))
 
         expectMsgClass(classOf[Connected])
         expectMsgClass(classOf[Register])
@@ -67,7 +67,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val connection = expectMsgClass(classOf[Bound])
         val publisher = TestProbe()
-        val client = system.actorOf(TcpClientActor.props(connection.localAddress, publisher.ref, 5 seconds))
+        val client = system.actorOf(TcpClientActor.props(connection.localAddress, 5 seconds))
 
         expectMsgClass(classOf[Connected])
         val handler = expectMsgClass(classOf[Register]).handler
@@ -85,7 +85,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
 
         val connection = expectMsgClass(classOf[Bound])
         val publisher = TestProbe()
-        val client = system.actorOf(TcpClientActor.props(connection.localAddress, publisher.ref, 5 seconds))
+        val client = system.actorOf(TcpClientActor.props(connection.localAddress, 5 seconds))
 
         system.actorOf(WatchActor.props(client, testActor))
 

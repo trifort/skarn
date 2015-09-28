@@ -14,8 +14,8 @@ import scala.concurrent.duration._
 import scala.concurrent.{Promise, Await}
 
 /**
- * Created by yusuke on 15/09/24.
- */
+* Created by yusuke on 15/09/24.
+*/
 class TlsClientActorITest extends TestKit({Kamon.start(); ActorSystem("TlsClientActorITest")})
 with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination { testSelf =>
   "TlsClientActor" must {
@@ -39,7 +39,7 @@ with WordSpecLike with MustMatchers with StopSystemAfterAllWithAwaitTermination 
         val testProbe = TestProbe()
         val probe = testProbe.ref
 
-        val client = system.actorOf(TlsClientActor.props(serverBinding.localAddress, publisher.ref, 5 seconds, sslContext))
+        val client = system.actorOf(TlsClientActor.props(serverBinding.localAddress, 5 seconds, sslContext))
 
         testProbe.expectMsg("connected")
 

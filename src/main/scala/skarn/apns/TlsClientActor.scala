@@ -22,11 +22,11 @@ object TlsClientActorProtocol {
 }
 
 object TlsClientActor {
-  def props(remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration, sslContext: SSLContext) = Props(new TlsClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration, sslContext: SSLContext))
+  def props(remoteAddress: InetSocketAddress, timeout: FiniteDuration, sslContext: SSLContext) = Props(new TlsClientActor(remoteAddress, timeout, sslContext))
 }
 
-class TlsClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration, val sslContext: SSLContext)
-  extends TcpClientActor(remoteAddress, publisher, timeout) with TlsFlow {
+class TlsClientActor(remoteAddress: InetSocketAddress, timeout: FiniteDuration, val sslContext: SSLContext)
+  extends TcpClientActor(remoteAddress, timeout) with TlsFlow {
   import TcpClientActorProtocol._
   import TlsClientActorProtocol._
   import Tcp._
@@ -66,25 +66,25 @@ class TlsClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, time
   override def connected(connection: ActorRef): Receive = {
     val (sendRef, receiveRef) = runnableTls.run()
     val r: Receive = {
-      case msg: Send => sendRef ! msg
-      case msg: Received => receiveRef ! msg
+      case msg: Send => sendRef forward msg
+      case msg: Received => receiveRef forward msg
       case SendEncrypted(data, promise) => {
         val cancelTimeout = context.system.scheduler.scheduleOnce(timeout) {
           promise.tryFailure(new Exception("timeout"))
         }
-        connection ! Write(data, Ack(promise, cancelTimeout))
+        connection ! Write(data, Ack(promise, cancelTimeout, sender()))
       }
-      case Ack(promise, timeout) => {
-        publisher ! Finished
+      case Ack(promise, timeout, ref) => {
+        ref ! Finished
         timeout.cancel()
         promise.success(())
       }
       case ReceiveEncrypted(data) => {
-        publisher ! Receive(data)
+        //publisher ! Receive(data)
       }
       case CommandFailed(Write(data, ack: Ack)) => {
         log.warning("TCP buffer is full. Retry sending.")
-        publisher ! ReSend(Send(data, ack.promise))
+        ack.sender ! ReSend(Send(data, ack.promise))
       }
       case _: ConnectionClosed => destroy()
     }
@@ -93,19 +93,19 @@ class TlsClientActor(remoteAddress: InetSocketAddress, publisher: ActorRef, time
 }
 
 object TlsClientRouteeActor {
-  def props(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration, sslContext: SSLContext) = Props(new TlsClientRouteeActor(id, pool, remoteAddress, publisher, timeout, sslContext))
+  def props(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, timeout: FiniteDuration, sslContext: SSLContext) = Props(new TlsClientRouteeActor(id, pool, remoteAddress, timeout, sslContext))
 }
 
-object TlsConnectionPool {
-  def props(nOfRoutee: Int, remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration, sslContext: SSLContext) = Props(new TlsConnectionPool(nOfRoutee, remoteAddress, publisher, timeout, sslContext))
+object TlsConnectionPoolActor {
+  def props(nOfRoutee: Int, remoteAddress: InetSocketAddress, timeout: FiniteDuration, sslContext: SSLContext) = Props(new TlsConnectionPoolActor(nOfRoutee, remoteAddress, timeout, sslContext))
 }
 
-class TlsConnectionPool(nOfRoutee: Int, remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration, sslContext: SSLContext) extends TcpConnectionPool(nOfRoutee: Int, remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration) {
-  override def createRoutee(id: Int) = context.actorOf(TlsClientRouteeActor.props(id, pool, remoteAddress, publisher, timeout, sslContext))
+class TlsConnectionPoolActor(nOfRoutee: Int, remoteAddress: InetSocketAddress, timeout: FiniteDuration, sslContext: SSLContext) extends TcpConnectionPoolActor(nOfRoutee, remoteAddress, timeout) {
+  override def createRoutee(id: Int) = context.actorOf(TlsClientRouteeActor.props(id, pool, remoteAddress, timeout, sslContext))
 }
 
-class TlsClientRouteeActor(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration, sslContext: SSLContext)
-  extends TlsClientActor(remoteAddress, publisher, timeout, sslContext) {
+class TlsClientRouteeActor(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remoteAddress: InetSocketAddress, timeout: FiniteDuration, sslContext: SSLContext)
+  extends TlsClientActor(remoteAddress, timeout, sslContext) {
   override def destroy() = {
     pool.remove(id)
     super.destroy()
@@ -114,14 +114,12 @@ class TlsClientRouteeActor(id: Int, pool: ConcurrentHashMap[Int, ActorRef], remo
 
 trait TlsConnectionPoolRouter extends ConnectionPoolRouter {
   val sslContext: SSLContext
-  override def createTcpClientRouter(remoteAddress: InetSocketAddress, publisher: ActorRef, timeout: FiniteDuration)
-    = TlsConnectionPool.props(maxConnection, remoteAddress, publisher, timeout, sslContext)
+  override def createTcpClientRouter(remoteAddress: InetSocketAddress, timeout: FiniteDuration)
+    = TlsConnectionPoolActor.props(maxConnection, remoteAddress, timeout, sslContext)
 }
 
-class TlsStreamActor(remoteAddress: InetSocketAddress, maxRequest: Int, maxConnection: Int, timeout: FiniteDuration, val sslContext: SSLContext)
-  extends TcpStreamActor(remoteAddress, maxRequest, maxConnection, timeout)
-  with TlsConnectionPoolRouter
+class TlsStreamActor(pool: ConnectionPool, maxRequest: Int) extends TcpStreamActor(pool, maxRequest)
 
 object TlsStreamActor {
-  def props(remoteAddress: InetSocketAddress, maxRequest: Int, maxConnection: Int, timeout: FiniteDuration, sslContext: SSLContext) = Props(new TlsStreamActor(remoteAddress, maxRequest, maxConnection, timeout, sslContext))
+  def props(pool: ConnectionPool, maxRequest: Int) = Props(new TlsStreamActor(pool, maxRequest))
 }

@@ -15,13 +15,14 @@ import scala.concurrent.{Future, Promise}
 trait TcpClientStream {
   import TcpClientActorProtocol._
 
-  val target: ActorRef
+  val connectionPool: ConnectionPool
+  val maxRequest: Int
 
-  protected[this] val convertFlow = Flow[ByteString].map(d => Send(d, Promise[Unit]))
+  protected[this] val convertFlow = Flow[ByteString].map(Send(_, Promise[Unit]))
 
-  protected[this] lazy val requestSink = Sink(ActorSubscriber[Send](target))
+  protected[this] def requestSink = Sink.actorSubscriber[Send](TlsStreamActor.props(connectionPool, maxRequest))
 
-  protected[this] lazy val responseSource = Source(ActorPublisher[ByteString](target))
+  protected[this] def responseSource = Source.actorPublisher[ByteString](TlsStreamActor.props(connectionPool, maxRequest))
 
   protected [this] val requestFuture = Flow[Send].map(_.promise.future)
 
